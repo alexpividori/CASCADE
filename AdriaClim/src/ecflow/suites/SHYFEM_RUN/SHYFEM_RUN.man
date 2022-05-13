@@ -1,1 +1,0 @@
-include/man/SHYFEM_RUN.man
