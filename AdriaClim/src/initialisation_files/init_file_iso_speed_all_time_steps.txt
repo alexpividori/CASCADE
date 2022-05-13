@@ -1,0 +1,2 @@
+/lustre/arpa/scratch/COPERNICUSMarine_dowload/2020/12/RFVL/20201201_h-CMCC--RFVL-MFSeas5-MEDATL-b20201215_an-sv06.00.nc
+/lustre/arpa/scratch/COPERNICUSMarine_dowload/2020/12/RFVL/20201202_h-CMCC--RFVL-MFSeas5-MEDATL-b20201215_an-sv06.00.nc

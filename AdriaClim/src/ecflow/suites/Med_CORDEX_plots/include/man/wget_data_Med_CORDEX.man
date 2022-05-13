@@ -1,0 +1,33 @@
+==========================================================
+           wget_data_Med_CORDEX manual page
+==========================================================
+
+The wget_data_Med_CORDEX task is the essential tool used to download 
+netCDF files from Med-CORDEX official site. 
+Files can be downloaded in two different modalities: manual and automatic.
+
+1- The manual modality download the files which names are saved inside 
+'manual_files_list_download.txt' document contained in:
+'/codes/Med_CORDEX_plots_scr/'
+The directory names are anyway constructed starting from initialization_file_download.txt
+so it is necessary to insert che correct root information inside that 
+like for example starting and ending date, model name etc etc.
+This modality is preferable when the files collect data from every decade 
+of all in a single file. 
+
+2- Automatic modality instead uses the only "initialization_file_download.txt"
+informations line by line. With a CSV format using semicolon, information 
+stored inside that are: 
+variable_name;domain;global_model_name;simulation_type;ensamble_name;regional_model_name;version;time_step;start_date;end_date
+for more informarions about the meaning of this names, please consult 
+the Med-CORDEX official site: https://www.medcordex.eu/
+
+Cycling on every single line, the task download every single file with that 
+scheme name year by year from the starting date to the ending date. Inside
+the script there is a function that create the date limits to be used in the 
+creation of the file name that will be downloaded. The entire set of files
+cooming from the same 'initialization_file_download.txt' line is stored in 
+a temporary directory called: ${GCMModelName}_${CMIP5ExperimentName}_${VariableName}
+placed inside the $tmp_dir_root (see general_Med_CORDEX_plots.ini).
+This downloading modality is preferable when the files collect data for 
+every single year.

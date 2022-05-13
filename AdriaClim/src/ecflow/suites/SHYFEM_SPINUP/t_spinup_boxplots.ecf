@@ -1,0 +1,208 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed providing, in an output file,
+#                  the summary of spin-up time statistics of all the variables
+#                  under analysis, which is also depicted through a box and
+#                  whiskers plot (whiskers extend from minimum to maximum,
+#                  boxes extend from 25th to 75th percentile and medians are
+#                  depicted with horizontal, orange lines).
+#                  This is performed by the use of a job script, prepared from
+#                  its related template, through a "sedfile" (see the EXTERNAL
+#                  CALLS comment section).
+#
+#  EXTERNAL CALLS: - job template aimed at creating and running a Python 3
+#                    script, the aim of which is described in the following.
+#                    The Python 3 script created through the job template is
+#                    aimed at providing, in an output file, the summary of
+#                    spin-up time statistics of all the variables under
+#                    analysis, which is also depicted through a box and
+#                    whiskers plot (whiskers extend from minimum to maximum,
+#                    boxes extend from 25th to 75th percentile and medians are
+#                    depicted with horizontal, orange lines).
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - suite initialisation files, specific for a certain
+#                    variable (e.g. T, S, u, v, z);
+#                  - temporary output ASCII file aimed at containing the list
+#                    of files (full paths) to be processed by the job;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-11-16.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to a given simulation
+# (files of this type are assumed to be identical, except for the
+# identification code of the simulation, SHY_SIM_ID). The basename (extension
+# excluded) of this initialisation file is provided by a suite variable
+%include <etc/%SIMA%.ini>
+# Include a specific initialisation file, peculiar to the given variable (e.g.
+# T, S, u, v, z). The basename (extension exluded, but dot included) of this
+# initialisation file is provided by a family variable
+%include <etc/%TOINCLUDE%ini>
+
+# **********************
+#  START OF MAIN SCRIPT
+# **********************
+
+# Define the default status for the submission of the desired job script:
+#  - OKKO=0 -> all went OK
+#  - OKKO=1 -> something went KO
+OKKO=0
+# Define the default status for the creation of directories:
+#  - OKKO_mkdir=0 -> all went OK
+#  - OKKO_mkdir=1 -> something went KO
+OKKO_mkdir=0
+# Define the name (full path) of a working directory (to be removed after
+# its usage), by the use of variables retrieved in the initialisation file
+# peculiar to the simulations
+work_dir="${SCRATCH_DIR}/$(mktemp -u bxp.XXXXX)"
+# Define the basename of the job to be used to provide the summary of spin-up
+# time statistics
+JOB="${JOB_BXP_TPL##*/}"   # consider the basename only
+JOB="${JOB//.tpl/}"        # remove the ".tpl" extension
+# Define the name (full path) of the file containing the list of files (full
+# paths) to be processed by the job (this file is temporary, and will be
+# removed after its usage)
+FILELIST2PROC="${work_dir}/bxp.txt"
+
+# Inform the user about the current directory
+echo -e "\n\tCurrent directory: $(pwd).\n"
+
+# Check if the working directory is already existent:
+#  - if it already exists
+if [[ -e $work_dir ]]; then
+    # Inform the user and remove it
+    echo -e "\n\tDirectory: ${work_dir} already exists. Removing it and creating it from scratch...\n"
+    rm -r $work_dir
+#  - if it does not exist
+else
+    # Inform the user
+    echo -e "\n\tDirectory: ${work_dir} does not exist. Creating it...\n"
+fi
+# Create the working directory
+mkdir $work_dir || OKKO_mkdir=1
+# Check the outcome of the creation of the working directory:
+#  - if all went OK
+if [[ OKKO_mkdir -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tDirectory: ${work_dir} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Directory: ${work_dir} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# Move to the working directory, informing the user
+echo -e "\n\tChange directory: moving to ${work_dir}...\n"; cd $work_dir
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Define the string containing the list of variables to be processed (variables
+# are separated by ";"), by the use of a family variable
+VARS="%VARS%"
+# Separate all the variables to be considered and put them into an array
+IFS=';' read -r -a VARS_ARRAY <<< $VARS
+# Define part of the basename of the file to be processed by the job (the
+# entire name will be completed in the following)
+SPINUP_STATISTICS_FILENAME="_${SPINUP_STATISTICS_FILENAME#*_}"
+# For each variable to be considered
+for VAR in ${VARS_ARRAY[@]}; do
+    # Complete the name (full path) of the file to be processed by the job
+    FILE2PROC="${SHY_POSTPROC_SPINUP_SIMS_DIR}/${VAR}/$VAR${SPINUP_STATISTICS_FILENAME}"
+    # Append the name of the file to be be processed by the job the temporary
+    # file
+    echo $FILE2PROC >> $FILELIST2PROC
+done
+
+# Prepare the job to be used to compute spin-up time statistics, starting from
+# its related template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_BXP_TPL_N/g
+    s/%%%%JOB_o%%%%/$JOB_BXP_TPL_o/g
+    s/%%%%JOB_e%%%%/$JOB_BXP_TPL_e/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_BXP_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_BXP_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_BXP_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%PY_MOD%%%%/${PY_MOD//\//\\/}/g
+    s/%%%%MINICONDA3_MOD%%%%/${MINICONDA3_MOD//\//\\/}/g
+    s/%%%%SHY_POSTPROC_SPINUP_SIMS_DIR%%%%/${SHY_POSTPROC_SPINUP_SIMS_DIR//\//\\/}/g
+    s/%%%%SIMA%%%%/%SIMA%/g
+    s/%%%%SIMB%%%%/%SIMB%/g
+    s/%%%%FILELIST2PROC%%%%/${FILELIST2PROC//\//\\/}/g
+    s/%%%%SPINUP_STATISTICS_SUMMARY_FILENAME%%%%/${SPINUP_STATISTICS_SUMMARY_FILENAME}/g
+    s/%%%%XAXIS_BXP%%%%/${XAXIS_BXP//\//\\/}/g
+    s/%%%%YAXIS_BXP%%%%/${YAXIS_BXP//\//\\/}/g
+    s/%%%%FIGNAME_BXP%%%%/$FIGNAME_BXP/g
+    s/%%%%TITLE_BXP%%%%/${TITLE_BXP}/g
+    s/%%%%FIG_FORMAT%%%%/$FIG_FORMAT/g
+EOF
+sed -f $SEDFILE $JOB_BXP_TPL > $JOB
+# Check the outcome of the preparation of the job:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\n\tJob: ${JOB} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\n\tERROR! Job: ${JOB} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# If the "sedfile" exists, remove it
+if [[ -e $SEDFILE ]];then rm $SEDFILE; fi
+
+# Check if the job exists:
+#  - if it exists
+if [[ -e $JOB ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} exists. Submitting to HPC queues...\n"
+#  - if it does not exist
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} does not exist. ABORT...\n"; ERROR
+fi
+# Submit the job to HPC queues, to compute spin-up time statistics
+qsub $JOB || OKKO=1
+# Check the outcome of the submission:
+#  - if all went OK
+if [[ OKKO -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} successfully submitted to HPC queues.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} unsuccessfully submitted to HPC queues. ABORT...\n"; ERROR
+fi
+
+# Remove the working directory, informing the user
+sleep 3
+rm -r $work_dir
+echo -e "\n\tDirectory: ${work_dir} removed.\n"
+
+# ********************
+#  END OF MAIN SCRIPT
+# ********************
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

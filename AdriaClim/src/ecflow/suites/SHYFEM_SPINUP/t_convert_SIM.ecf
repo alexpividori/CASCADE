@@ -1,0 +1,200 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at converting a desired file,
+#                  from SHY (.shy) to NetCDF (.nc).
+#                  The conversion is performed by the use of a job script,
+#                  prepared from its related template, through a "sedfile"
+#                  see the EXTERNAL CALLS comment section).
+#
+#  EXTERNAL CALLS: - job template aimed at converting a desired SHY (.shy)
+#                    file to NetCDF (.nc), by the use of the "shyelab"
+#                    SHYFEM's intrinsic routine.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-09-30.
+#
+#  MODIFICATIONS:  2021-10-01 -> change in the place where moving converted
+#                                NetCDF files: from a dedicated directory to
+#                                the directory containing all the stuff
+#                                related to the specific simulation;
+#                             -> reduction in the change of directories;
+#                             -> enhancement of the layout of the stdout.
+#                  2021-10-04 -> change of the working directory;
+#                             -> symbolic link of the desired SHY file to be
+#                                converted, to the working directory.
+#                  2021-10-06 -> debugging.
+#                  2021-10-15 -> in case of errors, exit with EXIT_STATUS=1.
+#                  2021-10-22 -> improvement in the description of the task
+#                                and adjustment of some details.
+#                  2021-10-27 -> sleep 3 seconds before removing the working
+#                                directory.
+#                  2021-10-29 -> addition of some new variables in the "here
+#                                document".
+#
+#  VERSION:        0.8.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# **********************
+#  START OF MAIN SCRIPT
+# **********************
+
+# Define the default status for the submission of the desired job script:
+#  - OKKO=0 -> all went OK
+#  - OKKO=1 -> something went KO
+OKKO=0
+# Define the default status for the creation of directories:
+#  - OKKO_mkdir=0 -> all went OK
+#  - OKKO_mkdir=1 -> something went KO
+OKKO_mkdir=0
+# Define the name (full path) of a working directory (to be removed after its
+# usage), by the use of both family variables and variables retrieved in the
+# initialisation file peculiar to the given simulation
+work_dir="${SCRATCH_DIR}/$(mktemp -u %TOPREPROC%.XXXXX)"
+# Define the name (full path) of the desired file to be converted, by the use
+# of both suite variables and variables retrieved in the initialisation file
+# peculiar to the given simulation
+SHY_FILE="${SHY_SIM_ID_DIR}/${SHY_SIM_NAME}.%TOPREPROC%"
+# Define the basename of the job to be used to convert simulation outputs from
+# SHY to NetCDF, starting from its related template (provided in the
+# initialisation file peculiar to the given simulation, with its full path)
+JOB="${JOB_SHY2NC_TPL##*/}"   # consider the basename only
+JOB="${JOB//.tpl/}"           # remove the ".tpl" extension
+
+# Inform the user about the current directory
+echo -e "\n\tCurrent directory: $(pwd).\n"
+
+# Check if the working directory is already existent:
+#  - if it already exists
+if [[ -e $work_dir ]]; then
+    # Inform the user and remove it
+    echo -e "\n\tDirectory: ${work_dir} already exists. Removing it and creating it from scratch...\n"
+    rm -r $work_dir
+#  - if it does not exist
+else
+    # Inform the user
+    echo -e "\n\tDirectory: ${work_dir} does not exist. Creating it...\n"
+fi
+# Create the working directory
+mkdir $work_dir || OKKO_mkdir=1
+# Check the outcome of the creation of the working directory:
+#  - if all went OK
+if [[ OKKO_mkdir -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tDirectory: ${work_dir} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Directory: ${work_dir} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# Move to the working directory, informing the user
+echo -e "\n\tChange directory: moving to ${work_dir}...\n"; cd $work_dir
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Make a symbolic link of the desired file to be converted, to the current
+# directory, and get its basename
+ln -sv $SHY_FILE ./
+FILE2CONVERT="${SHY_FILE##*/}"
+
+# Create the job to be used to convert simulation outputs from SHY to NetCDF,
+# starting from its related template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_SHY2NC_TPL_N/g
+    s/%%%%JOB_o%%%%/$JOB_SHY2NC_TPL_o/g
+    s/%%%%JOB_e%%%%/$JOB_SHY2NC_TPL_e/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_SHY2NC_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_SHY2NC_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_SHY2NC_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%SHY_MOD%%%%/${SHY_MOD//\//\\/}/g
+    s/%%%%SHY_SHYELAB%%%%/${SHY_SHYELAB//\//\\/}/g
+    s/%%%%FILE2CONVERT%%%%/$FILE2CONVERT/g
+EOF
+sed -f $SEDFILE $JOB_SHY2NC_TPL > $JOB
+# Check the outcome of the creation of the job:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\n\tJob: ${JOB} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\n\tERROR! Job: ${JOB} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# If the "sedfile" exists, remove it
+if [[ -e $SEDFILE ]];then rm $SEDFILE; fi
+
+# Check if the job exists:
+#  - if it exists
+if [[ -e $JOB ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} exists. Submitting to HPC queues...\n"
+#  - if it does not exist
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} does not exist. ABORT...\n"; ERROR
+fi
+# Submit the job to HPC queues, to convert the desired file from SHY to NetCDF.
+# The "shyelab" SHYFEM's intrinsic routine is going to be used: a NetCDF file
+# named "out.nc" will be created
+qsub $JOB || OKKO=1
+# Check the outcome of the submission:
+#  - if all went OK
+if [[ OKKO -eq 0 ]]; then
+    # Inform the user and set an event
+    echo -e "\tJob: ${JOB} successfully submitted to HPC queues.\n"
+    ecflow_client --event=preproc_OK
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} unsuccessfully submitted to HPC queues. ABORT...\n"; ERROR
+fi
+# Name the "out.nc" NetCDF file as the corresponding SHY file, but with ".nc"
+# extension
+nc_file="${FILE2CONVERT##*/}"
+nc_file="${nc_file%%.*}.nc"
+mv "out.nc" $nc_file
+# Move the renamed NetCDF file to the desired directory (provided in the
+# initialisation file peculiar to the given simulation), informing the user
+mv $nc_file $SHY_SIM_ID_DIR
+echo -e "\n\tFile: ${nc_file} moved to ${SHY_SIM_ID_DIR}.\n"
+# Move to the upper directory, informing the user
+echo -e "\n\tChange directory: moving to an upper level...\n"; cd ..
+echo -e "\tCurrent directory: $(pwd).\n"
+# Remove the working directory, informing the user
+sleep 3
+rm -r $work_dir
+echo -e "\n\tDirectory: ${work_dir} removed.\n"
+
+# ********************
+#  END OF MAIN SCRIPT
+# ********************
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

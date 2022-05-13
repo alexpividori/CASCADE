@@ -1,0 +1,9 @@
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_ausa.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_cormor.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_corno.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_isonzo.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_lemene.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_livenza-tot.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_piave.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_stella.dat
+/lustre/arpa/minighera/shyfem/nadri-mg_2020/input/rivers/portata_turgnano.dat

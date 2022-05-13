@@ -1,0 +1,18 @@
+=========================================================================
+                           merge files manual
+=========================================================================
+
+The entire simulation data is often not stored inside a single netCDF file. 
+Ofter files from year by year but for out aims is very useful to have a single 
+file that contains the entire simulation data storage.
+
+For this reason merge_files.ecf task has been writed to merge temporally
+the entire dataset in a single netCDF. Also here cdo comes in handy 
+with the command -mergetime that collect the entire data base in a single
+file which date goes from the initial date to the ending one. 
+For example, an historical simulation will merge every year file from 
+1950 to 2005. A scenarion instead will go from 2006 to 2100. The resulting 
+file is the final edited product and for that reason it is renamed with 
+the 'edit_' prefix and saved permanently in a dedicated directory:
+/lustre/arpa/AdriaClim/data/Med_CORDEX_files/${GModel_name}_${RModel_name}
+ 

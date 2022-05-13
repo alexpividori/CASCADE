@@ -1,0 +1,119 @@
+# SHYFEM node's longitude (°E);SHYFEM node's latitude (°N);ID;SHYFEM node;brief description;long description
+13.126662;45.711761;SG001;5160;Smatch_1;nearest SHYFEM node to (13.126465 °E, 45.711114 °N), namely "Smatch_1" buoy
+13.128633;45.716042;SG002;4758;5229;nearest SHYFEM node to (13.128559 °E, 45.716727 °N), namely "5229" buoy
+13.136707;45.735497;SG003;228;Smatch_3;nearest SHYFEM node to (13.136105 °E, 45.735800 °N), namely "Smatch_3" buoy
+13.136493;45.668865;SB004;12902;CE161;nearest SHYFEM node to (13.137830 °E, 45.669730 °N), namely "CE161" station
+13.158403;45.659122;SX005;12389;SM5;nearest SHYFEM node to (13.155590 °E, 45.658730 °N), namely "SM5" station
+13.172561;45.642387;SX006;12362;SMLG1;nearest SHYFEM node to (13.179680 °E, 45.642040 °N), namely "SMLG1" station
+13.220309;45.738701;SG007;4483;Smatch_5;nearest SHYFEM node to (13.218900 °E, 45.738960 °N), namely "Smatch_5" buoy
+13.232969;45.730122;SG008;4408;5228;nearest SHYFEM node to (13.232107 °E, 45.730268 °N), namely "5228" buoy
+13.225346;45.608192;SX009;14007;SMLG2;nearest SHYFEM node to (13.232690 °E, 45.607380 °N), namely "SMLG2" station
+13.237394;45.649811;SX010;13181;ME221;nearest SHYFEM node to (13.242320 °E, 45.653370 °N), namely "ME221" station
+13.249311;45.686417;SX011;13684;CE152;nearest SHYFEM node to (13.251020 °E, 45.685470 °N), namely "CE152" station
+13.253000;45.703197;SX012;11631;CE154;nearest SHYFEM node to (13.252690 °E, 45.703320 °N), namely "CE154" station
+13.307185;45.686634;SX013;13928;CE142;nearest SHYFEM node to (13.307200 °E, 45.686510 °N), namely "CE142" station
+13.316975;45.548172;SX014;15454;SMLG3;nearest SHYFEM node to (13.316730 °E, 45.548790 °N), namely "SMLG3" station
+13.322474;45.618610;SX015;12331;I585;nearest SHYFEM node to (13.327550 °E, 45.621430 °N), namely "I585" station
+13.331047;45.729591;SG016;3658;Smatch_4;nearest SHYFEM node to (13.329770 °E, 45.730370 °N), namely "Smatch_4" buoy
+13.338068;45.648441;SX017;12617;ME211;nearest SHYFEM node to (13.335060 °E, 45.650090 °N), namely "ME211" station
+13.342194;45.717499;SG018;3603;522f;nearest SHYFEM node to (13.343004 °E, 45.717867 °N), namely "522f" buoy
+13.359152;45.671837;SX019;13351;CE141;nearest SHYFEM node to (13.360530 °E, 45.671930 °N), namely "CE141" station
+13.390605;45.643497;SX020;13884;ME121;nearest SHYFEM node to (13.388890 °E, 45.641200 °N), namely "ME121" station
+13.405663;45.651112;SX021;12950;0607M;nearest SHYFEM node to (13.401090 °E, 45.650890 °N), namely "0607M" station
+13.417450;45.706654;SG022;2303;Smatch_2;nearest SHYFEM node to (13.417160 °E, 45.706730 °N), namely "Smatch_2" buoy
+13.466848;45.679401;SB023;13072;0405M;nearest SHYFEM node to (13.467350 °E, 45.677840 °N), namely "0405M" station
+13.482225;45.609547;SX024;16535;SMTS3;nearest SHYFEM node to (13.483350 °E, 45.613210 °N), namely "SMTS3" station
+13.497473;45.673454;SX025;12249;ME111;nearest SHYFEM node to (13.502440 °E, 45.672190 °N), namely "ME111" station
+13.534906;45.700405;SX026;12741;0203M;nearest SHYFEM node to (13.533470 °E, 45.701160 °N), namely "0203M" station
+13.535583;45.632084;SX027;17035;F464;nearest SHYFEM node to (13.539570 °E, 45.633790 °N), namely "F464" station
+13.561923;45.614899;SG028;15148;P555;nearest SHYFEM node to (13.565120 °E, 45.618250 °N), namely "P555" buoy (Paloma)
+13.563724;45.692074;SX029;15874;SMNU3;nearest SHYFEM node to (13.565210 °E, 45.691210 °N), namely "SMNU3" station
+13.577961;45.754147;SP030;15623;CE121;nearest SHYFEM node to (13.578540 °E, 45.753440 °N), namely "CE121" station
+13.582593;45.718452;SX031;15147;CE122;nearest SHYFEM node to (13.583100 °E, 45.717640 °N), namely "CE122" station
+13.596478;45.693417;SX032;16961;MA211;nearest SHYFEM node to (13.593830 °E, 45.692250 °N), namely "MA211" station
+13.596274;45.717194;SX033;14927;SMNU2;nearest SHYFEM node to (13.597440 °E, 45.714730 °N), namely "SMNU2" station
+13.598217;45.768120;SP034;18187;CE111;nearest SHYFEM node to (13.598840 °E, 45.769350 °N), namely "CE111" station
+13.601470;45.730629;SX035;16873;SMNU1;nearest SHYFEM node to (13.602010 °E, 45.729500 °N), namely "SMNU1" station
+13.625259;45.638107;SX036;16021;SMTS2;nearest SHYFEM node to (13.626590 °E, 45.637130 °N), namely "SMTS2" station
+13.624562;45.664879;SX037;18207;MA213;nearest SHYFEM node to (13.626970 °E, 45.667380 °N), namely "MA213" station
+13.677003;45.641014;SX038;14942;MA311;nearest SHYFEM node to (13.679530 °E, 45.642270 °N), namely "MA311" station
+13.694199;45.648445;SX039;18268;SMTS1;nearest SHYFEM node to (13.697210 °E, 45.649170 °N), namely "SMTS1" station
+13.701739;45.620132;SX040;16805;A321;nearest SHYFEM node to (13.703700 °E, 45.621350 °N), namely "A321" station
+13.710800;45.701344;SN041;14696;CA331;nearest SHYFEM node to (13.710270 °E, 45.700620 °N), namely "CA331" station
+13.728396;45.652821;SX042;15976;SM2;nearest SHYFEM node to (13.726620 °E, 45.654580 °N), namely "SM2" station
+13.744165;45.611198;SP043;18028;CA351;nearest SHYFEM node to (13.743460 °E, 45.611330 °N), namely "CA351" station
+13.745832;45.622070;SP044;15563;SMNI2;nearest SHYFEM node to (13.743780 °E, 45.621910 °N), namely "SMNI2" station
+13.752322;45.657730;SX045;16114;CA361;nearest SHYFEM node to (13.750520 °E, 45.657130 °N), namely "CA361" station
+13.755321;45.651409;SX046;18263;SMNI1;nearest SHYFEM node to (13.754760 °E, 45.651220 °N), namely "SMNI1" station
+12.779824;45.538555;CB001;13825;Eraclea_Mare;nearest SHYFEM node to (12.779044 °E, 45.539162 °N), a point in front of Eraclea Mare
+12.813405;45.556145;CB002;13215;Duna_Verde;nearest SHYFEM node to (12.814687 °E, 45.557198 °N), a point in front of Duna Verde
+12.874074;45.582069;CF003;12567;Foce_Livenza;nearest SHYFEM node to (12.873881 °E, 45.579355 °N), a point in front of Livenza river's mouth
+12.910668;45.601540;CB004;13790;Caorle;nearest SHYFEM node to (12.910118 °E, 45.601333 °N), a point in front of Caorle
+12.979266;45.612396;CB005;12799;Bibione_Pineda;nearest SHYFEM node to (12.976804 °E, 45.613951 °N), a point in front of the western part of Bibione Pineda
+13.049298;45.620377;CB006;13279;Bibione;nearest SHYFEM node to (13.046250 °E, 45.620280 °N), a point in front of Bibione
+13.115035;45.638760;CF007;12330;Foce_Tagliamento;nearest SHYFEM node to (13.115675 °E, 45.637165 °N); a point in front of Tagliamento river's mouth
+13.128464;45.660778;CB008;12484;Lignano_Sabbiadoro;nearest SHYFEM node to (13.127424 °E, 45.658545 °N), a point in front of Lignano Sabbiadoro
+13.169729;45.691113;CX009;13853;near_Lignano_mouth;nearest SHYFEM node to (13.169805 °E, 45.691556 °N), a point near Marano and Grado lagoon's Lignano mouth
+13.206737;45.701488;CB010;12926;Isola_S_Andrea;nearest SHYFEM node to (13.209259 °E, 45.702355 °N), a point in front of the southern part of Isola di Sant'Andrea
+13.267135;45.698566;CX011;12445;Bocca_d_Anfora;nearest SHYFEM node to (13.268616 °E, 45.699339 °N), a point in front of the southern part of Bocca d'Anfora
+13.327082;45.671917;CX012;12643;Spiaggia_banco_d_orio;nearest SHYFEM node to (13.329484 °E, 45.673258 °N), a point in front of the southern part of Spiaggia banco d'orio
+13.386950;45.667305;CB013;12826;Grado;nearest SHYFEM node to (13.387502 °E, 45.666010 °N), a point in front of Grado
+13.456266;45.677547;CB014;12573;East_Grado_Pineta;nearest SHYFEM node to (13.458328 °E, 45.678937 °N), a point in front of the eastern part of Grado Pineta
+13.504826;45.696918;CB015;12959;Fossalon_di_Grado;nearest SHYFEM node to (13.505988 °E, 45.696701 °N), a point in front of Fossalon di Grado
+13.566401;45.721020;CF016;18047;Foce_Isonzo;nearest SHYFEM node to (13.566616 °E, 45.722587 °N), a point in front of Isonzo river's mouth
+13.537462;45.750111;CF017;16591;Marina_Julia-Panzano_1;nearest SHYFEM node to (13.538536 °E, 45.751568 °N), a point in the southern part of the golfo di Panzano (Gulf of Panzano)
+13.554708;45.770962;CP018;16729;Marina_Julia-Panzano_2;nearest SHYFEM node to (13.553390 °E, 45.770306 °N), a point in the northern part of the golfo di Panzano (Gulf of Panzano)
+13.610591;45.760784;CP019;16189;Duino;nearest SHYFEM node to (13.609225 °E, 45.759845 °N), a point in front of Duino
+13.657619;45.729488;CX020;16034;S_Croce;nearest SHYFEM node to (13.660000 °E, 45.730000 °N), a point in front of Santa Croce
+13.694232;45.702824;CN021;16065;Miramare;nearest SHYFEM node to (13.693910 °E, 45.701007 °N), a point in front of Miramare
+13.731198;45.679111;CB022;18243;Barcola;nearest SHYFEM node to (13.731142 °E, 45.679118 °N), a point in front of Barcola
+13.741609;45.655041;CX023;15971;Trieste;nearest SHYFEM node to (13.740243 °E, 45.655489 °N), a point in front of Trieste
+13.759900;45.616322;CP024;17345;Muggia_bay;nearest SHYFEM node to (13.759934 °E, 45.617699 °N), a point in the baia di Muggia (Bay of Muggia)
+13.695603;45.606247;CB025;16336;Debeli_rtic;nearest SHYFEM node to (13.698234 °E, 45.605744 °N), a point in front of Debeli rtic (Punta Grossa)
+13.716132;45.564381;CP026;17090;Koperski_Zaliv;nearest SHYFEM node to (13.715798 °E, 45.564016 °N), a point in Koperski Zaliv (Bay of Koper)
+13.654381;45.555580;CB027;15175;Izola;nearest SHYFEM node to (13.655066 °E, 45.556339 °N), a point in front of Izola
+13.578260;45.538128;CB028;15950;Piran;nearest SHYFEM node to (13.580957 °E, 45.539087 °N), a point in front of the northern part of Piran
+13.568226;45.501404;CB029;15838;Piranski_zaliv;nearest SHYFEM node to (13.568360 °E, 45.500098 °N), a point in the Piranski zaliv (Gulf oh Pirano)
+13.485779;45.506687;CX030;15625;Rt_Savudrija;nearest SHYFEM node to (13.485381 °E, 45.506018 °N), a point in front of Rt Savudrija (Cape Savudrija)
+13.491970;45.436722;CB031;17628;Umag;nearest SHYFEM node to (13.490556 °E, 45.437169 °N), a point in front of Umag
+13.515570;45.362068;CX032;15867;south_Umag;nearest SHYFEM node to (13.520694 °E, 45.362530 °N), a point in front of the coast, southern to Umag
+13.564248;45.308990;CP033;16619;Luka_Mirna;nearest SHYFEM node to (13.567348 °E, 45.307729 °N), a point in Luka Mirna (Bay of Mirna)
+13.566129;45.237820;CB034;15666;Porec;nearest SHYFEM node to (13.565380 °E, 45.235119 °N), a point in front of Porec
+13.089061;45.704247;LX001;5009;;nearest SHYFEM node to (13.088181 °E, 45.705174 °N);
+13.105494;45.721340;LF002;5081;Foce_Stella;nearest SHYFEM node to (13.105719 °E, 45.721869 °N), a point in front of Stella river's delta
+13.113104;45.697716;LX003;5685;;nearest SHYFEM node to (13.114098 °E, 45.697192 °N);
+13.126816;45.748119;LX004;5314;;nearest SHYFEM node to (13.126868 °E, 45.748744 °N);
+13.152930;45.701965;LI005;8251;Lignano_mouth;nearest SHYFEM node to (13.153226 °E, 45.701898 °N), a point in Marano and Grado lagoon's Lignano mouth
+13.167158;45.720566;LX006;4141;;nearest SHYFEM node to (13.166286 °E, 45.720810 °N);
+13.167485;45.743496;LX007;366;;nearest SHYFEM node to (13.167748 °E, 45.744755 °N);
+13.201981;45.723484;LX008;860;;nearest SHYFEM node to (13.201672 °E, 45.723245 °N);
+13.201823;45.758522;LX009;4530;;nearest SHYFEM node to (13.203482 °E, 45.758053 °N);
+13.235228;45.748119;LF010;4280;Fiume_Corno;nearest SHYFEM node to (13.235881 °E, 45.747415 °N), a point in front of Corno river's mouth
+13.246992;45.717442;LI011;6859;Porto_Buso_mouth;nearest SHYFEM node to (13.247296 °E, 45.717339 °N), a point in Marano and Grado lagoon's Porto Buso mouth
+13.258498;45.730064;LX012;1497;;nearest SHYFEM node to (13.257798 °E, 45.729790 °N);
+13.269468;45.742786;LX013;1638;;nearest SHYFEM node to (13.267798 °E, 45.742422 °N);
+13.295211;45.701969;LX014;13127;near_Morgo_mouth;nearest SHYFEM node to (13.295665 °E, 45.701950 °N), a point near Marano and Grado lagoon's Morgo mouth
+13.331043;45.708546;LX015;1120;;nearest SHYFEM node to (13.330848 °E, 45.709506 °N);
+13.349142;45.726421;LX016;3218;;nearest SHYFEM node to (13.350284 °E, 45.726123 °N);
+13.367851;45.684750;LI017;9414;Grado_mouth;nearest SHYFEM node to (13.368160 °E, 45.684677 °N), a point in Marano and Grado lagoon's Grado mouth
+13.396952;45.717716;LX018;2654;Grado_Camping;nearest SHYFEM node to (13.397767 °E, 45.716994 °N), a point in front of Grado Camping
+13.001615;45.585075;MX001;13149;;nearest SHYFEM node to (13.000000 °E, 45.583333 °N);
+13.169696;45.582169;MX002;14055;;nearest SHYFEM node to (13.166667 °E, 45.583333 °N);
+13.327004;45.582302;MX003;17778;;nearest SHYFEM node to (13.333333 °E, 45.583333 °N);
+13.497194;45.581860;MX004;15423;;nearest SHYFEM node to (13.500000 °E, 45.583333 °N);
+13.663036;45.582649;MX005;17174;;nearest SHYFEM node to (13.666667 °E, 45.583333 °N);
+12.838244;45.498638;MX006;13990;;nearest SHYFEM node to (12.833333 °E, 45.500000 °N);
+13.010149;45.501598;MX007;18227;;nearest SHYFEM node to (13.000000 °E, 45.500000 °N);
+13.180114;45.503242;MX008;16084;;nearest SHYFEM node to (13.166667 °E, 45.500000 °N);
+13.331721;45.500492;MX009;15311;;nearest SHYFEM node to (13.333333 °E, 45.500000 °N);
+12.848054;45.423344;MX010;14038;;nearest SHYFEM node to (12.833333 °E, 45.416667 °N);
+13.010406;45.433880;MX011;16853;;nearest SHYFEM node to (13.000000 °E, 45.416667 °N);
+13.152884;45.418793;MX012;15126;;nearest SHYFEM node to (13.166667 °E, 45.416667 °N);
+13.327229;45.411537;MX013;14902;;nearest SHYFEM node to (13.333333 °E, 45.416667 °N);
+13.016583;45.326359;MX014;18142;;nearest SHYFEM node to (13.000000 °E, 45.333333 °N);
+13.161942;45.329609;MX015;16946;;nearest SHYFEM node to (13.166667 °E, 45.333333 °N);
+13.332448;45.337143;MX016;14831;;nearest SHYFEM node to (13.333333 °E, 45.333333 °N);
+12.975901;45.259277;MX017;15649;;nearest SHYFEM node to (13.000000 °E, 45.250000 °N);
+13.164728;45.248489;MX018;16054;;nearest SHYFEM node to (13.166667 °E, 45.250000 °N);
+13.337527;45.244110;MX019;17646;;nearest SHYFEM node to (13.333333 °E, 45.250000 °N);
+13.493114;45.247929;MX020;15041;;nearest SHYFEM node to (13.500000 °E, 45.250000 °N);

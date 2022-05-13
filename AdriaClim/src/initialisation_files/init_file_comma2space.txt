@@ -1,0 +1,3 @@
+/lustre/arpa/minighera/data/coastlines/bna_postproc/adriatic_coast_north-xy.bna
+/lustre/arpa/minighera/data/coastlines/bna_postproc/full_Adriatic_coast_GSHHS_highres-xy.bna
+/lustre/arpa/minighera/data/coastlines/bna_postproc/fvg_coast_WGS84_4326-xy.bna

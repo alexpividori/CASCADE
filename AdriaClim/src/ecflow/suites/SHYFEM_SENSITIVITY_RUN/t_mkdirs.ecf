@@ -1,0 +1,100 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at creating the directory and
+#                  related subdirectories, to be used to contain all the stuff
+#                  (settings, inputs and outputs) of a given simulation. This
+#                  is carried out in a specific folder of the "scratch".
+#                  The tree of the main directory is the following:
+#                   .
+#                   ├── EXT
+#                   ├── input
+#                   │   ├── adri
+#                   │   ├── meteo
+#                   │   └── rivers
+#                   └── NetCDF
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-10.
+#
+#  MODIFICATIONS:  2022-03-16 -> new subdirectories "EXT" and "NetCDF".
+#
+#  VERSION:        0.2.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+#  --- START OF FUNCTIONS ---
+
+# Create the desired directory and check the outcome of the creation
+mkdir_check () {
+    # Define the default status for the creation of directory:
+    #  - OKKO=0 -> all went OK
+    #  - OKKO=1 -> something went KO
+    OKKO=0
+    # Create the desired directory (provided as first input argument to the
+    # function)
+    mkdir -p $1 || OKKO=1
+    # Check the outcome of the creation of the directory:
+    #  - if all went OK
+    if [[ $OKKO -eq 0 ]]; then
+        # Inform the user
+        echo -e "\tDirectory: $1 successfully created.\n"
+    #  - if something went KO
+    else
+        # Inform the user and abort
+        echo -e "\tERROR! Directory: $1 unsuccessfully created. Please check. ABORT..."; ERROR
+    fi
+}
+
+#  --- END OF FUNCTIONS ---
+
+# Function calling: create the desired directory and check the outcome of the
+# creation
+#  - scratch directory aimed at containing all the stuff (settings, inputs and
+#    outputs) related to the given simulation
+mkdir_check "${SCRATCH_SIM_ID_DIR}"
+#  - subdirectory of the directory above, aimed at containing all the inputs
+mkdir_check "${SCRATCH_SIM_ID_INPUT_DIR}"
+#  - subdirectory of the input directory, aimed at containing all the needed
+#    sea data
+mkdir_check "${SCRATCH_SIM_ID_INPUT_ADRI_DIR}"
+#  - subdirectory of the input directory, aimed at containing all the needed
+#    rivers data
+mkdir_check "${SCRATCH_SIM_ID_INPUT_RIVERS_DIR}"
+#  - subdirectory of the input directory, aimed at containing all the needed
+#    meteorological data
+mkdir_check "${SCRATCH_SIM_ID_INPUT_METEO_DIR}"
+#  - subdirectory of the scratch directory above, aimed at containing NetCDF
+#    output files
+mkdir_check "${SCRATCH_SIM_ID_NETCDF_DIR}"
+#  - subdirectory of the scratch directory above, aimed at containing splitted
+#    (unpacked) EXT files
+mkdir_check "${SCRATCH_SIM_ID_EXT_DIR}"
+#  - subdirectory of SHYFEM "spy" directory dedicated to the specific
+#    simulation, aimed at containing all the stuff to be published on the
+#    desired web page
+mkdir_check "${PUB_HTML_SHY_SPY_SIM_DIR}"
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

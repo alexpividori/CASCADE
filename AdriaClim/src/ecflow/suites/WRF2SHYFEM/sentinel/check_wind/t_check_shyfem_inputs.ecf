@@ -1,0 +1,110 @@
+%include <head.h>
+
+# Definition of the full path of the initialisation file
+init_file="%ECF_INCLUDE%/%VARS%_check_shyfem_inputs.ini"
+
+# Check the existence of the initialisation file:
+# if the initialisation file exists
+if [[ -e $init_file ]]; then
+    # Print a message to inform the user
+    echo -e "\n\tInitialisation file: $init_file found.\n"
+# if the initialisation file does not exist
+else
+    # Print an error message to inform the user and exit
+    echo -e "\n\tERROR! Initialisation file: $init_file not found. Exit\n"
+    exit
+fi
+
+# Define the name of a temporary file
+file_tmp=$(mktemp file_tmp.XXXXXX)
+
+# Remove comments from the initialisation file, printing the desired content
+# to the temporary file
+grep -v "^#" $init_file > $file_tmp
+
+# Initialisation of an empty array, to be filled with initialisation file
+# information
+init_file_info=()
+# Read the content of the temporary file (initialisation file without
+# comments), line by line
+while read line; do
+    # Append each line to the array previously initialised
+    init_file_info+=("$line")
+done < $file_tmp
+
+# Remove the temporary file
+rm $file_tmp
+
+# Extract the content of the filled array
+vars=${init_file_info[0]}                  # variables
+root_dir=${init_file_info[1]}              # root directory of WRF data storage
+python_list_maker=${init_file_info[2]}     # python script making the data list
+python_file_checker=${init_file_info[3]}   # python script checking the
+                                           # existence of data files
+workdir_root=${init_file_info[4]}          # root of the working directory
+list_file=${init_file_info[5]}             # data list file
+job_script=${init_file_info[6]}            # job script making data preprocessing
+
+# Definition of the specific working directory for this task
+workdir="$workdir_root/%VARS%"
+# If the working directory does not exist, create it
+if [[ ! -d "$workdir" ]]; then mkdir -p $workdir; fi
+# Move into the working directory
+cd $workdir
+
+# Check the existence of the external Python script making the data list:
+# if the Python script exists
+if [[ -e "$python_list_maker" ]]; then
+    # Print a message to inform the user
+    echo -e "\n\tPython script: $python_list_maker found. Execution starts...\n"
+# if the Python script does not exist
+else
+    # Print an error message to inform the user and exit
+    echo -e "\n\tERROR! Python script: $python_list_maker not found. Exit.\n"
+    exit
+fi
+# Definition of the default status for the execution of the Python script
+OKKO_list=0
+# Execution of the Python script
+python $python_list_maker %DS% %DE% $root_dir $vars > $list_file || OKKO_list=1
+# Check the outcome of the execution of the Python script:
+# if all went OK
+if [[ OKKO_list -eq 0 ]]; then
+    # Print a message to inform the user
+    echo -e "\n\tExecution of the Python script $python_list_maker: all went OK.\n"
+# if something went wrong
+else
+    # Print and error message to inform the user and exit
+    echo -e "\n\tERROR! Execution of the Python script $python_list_maker: something went wrong. Exit.\n"
+    exit
+fi
+
+# Check the existence of the Python script checking the existence of data
+# files:
+# if the Python script exists
+if [[ -e "$python_file_checker" ]]; then
+    # Print a message to inform the user
+    echo -e "\n\tPython script: $python_file_checker found. Execution starts...\n"
+# if the Python script does not exist
+else
+    # Print an error message to inform the user and exit
+    echo -e "\n\tERROR! Python script: $python_file_checker not found. Exit.\n"
+    exit
+fi
+# Definition of the default status for the execution of the Python script
+OKKO_check=0
+# Execution of the Python script
+python $python_file_checker $list_file || OKKO_check=1
+# Check the outcome of the execution of the Python script:
+# if all went OK
+if [[ OKKO_check -eq 0 ]]; then
+    # Print a message to inform the user
+    echo -e "\n\tExecution of the Python script $python_file_checker: all went OK.\n"
+# if something went wrong
+else
+    # Print and error message to inform the user and exit
+    echo -e "\n\tERROR! Execution of the Python script $python_file_checker: something went wrong. Exit.\n"
+    exit
+fi
+
+%include <tail.h>

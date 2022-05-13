@@ -1,0 +1,96 @@
+#!/bin/bash
+
+#******************************************************************************
+#
+# DESCRIPTION:      This GMT script creates a colored contour of the Trieste 
+#                   gulf to represent the differences of temp,sal and eight
+#                   for scenario files downloaded from Med-CORDEX official 
+#                   site fot different RCP values.
+#          
+#                   module load gmt/6.0.0/intel/19.1.1.217-clpimwl
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (temp);
+#                    
+#                     
+# DEVELOPER:        Alex Pividori (alex.pividori@arpa.fvg.it)
+#                   ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: GMT 6.0.0.
+#
+# CREATION DATE:    23/02/2022
+#
+# MODIFICATIONS:    23/02/2022 --> Creation
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+#                    TEMPERATURE VERSION (Median values)
+#==============================================================================
+
+    LON_MIN_GMT=12.67   # minimum longitude
+    LON_MAX_GMT=13.85   # maximum longitude
+    LAT_MIN_GMT=45.10   # minimum latitude
+    LAT_MAX_GMT=45.81   # maximum latitude
+ 
+#==================== Cycle on file names =====================
+
+while IFS='/' read  dir_name file_name
+do
+
+     IFS='_'  read   -a  name_spl <<< "$file_name"
+ 
+     year_in=${name_spl[9]:0:4}
+     year_fin=${name_spl[10]:0:4}
+
+     # Months names are used only to be printed in the title
+     months=( "January" "February" "March" "April" "May" "June" "July" "August" "September" "October" "November" "December" )
+
+#============= Cycle on different Months of the year ==============
+
+   output_arc_dir="/lustre/arpa/AdriaClim/public_html/Med_CORDEX_analysis/SCENARIO/contour_GMT/${dir_name}"
+   input_arc_dir="/lustre/arpa/AdriaClim/data/Med_CORDEX_files"
+
+    FILE2PROC="${input_arc_dir}/${dir_name}/${file_name}"
+ 
+    if [[ ! -f colors_temp.cpt ]]; then 
+          gmt makecpt -Cred2green -T-4./4./0.25 > colors_temp.cpt -Iz
+    fi
+
+    # it is essential to use a symbolic link because the path can't be too long
+    ln -s $FILE2PROC FILE2PROC_link.ln
+
+# i value indicate the month 0=January 1=February etc.
+for i in $( seq 0 11 )  
+do
+
+i_m=`printf "%02u" $(( i + 1 ))`
+
+gmt begin 
+        gmt figure $output_arc_dir/dme_cnt_temp_${i_m}_${dir_name}_${name_spl[4]}_${name_spl[7]}_${year_in}_${year_fin}  png  A+m0.5c
+        gmt grdcontour @"FILE2PROC_link.ln"?tos_med[$i] -R$LON_MIN_GMT/$LON_MAX_GMT/$LAT_MIN_GMT/$LAT_MAX_GMT -JM6i   -S5 -Ncolors_temp.cpt -A0.5  -Wathinnest,black,-  # -A,+h
+        gmt coast -R$LON_MIN_GMT/$LON_MAX_GMT/$LAT_MIN_GMT/$LAT_MAX_GMT -JM6i -B  -Ggray -B+t"${months[$i]} delta median values in ${year_in}-${year_fin} decade"  -Ia \
+                  -Wthinnest  -Df
+        # Model Name and annotations
+        echo "Model: ${dir_name}" | gmt text -R$LON_MIN_GMT/$LON_MAX_GMT/$LAT_MIN_GMT/$LAT_MAX_GMT  -JM6i -F+f11+cTL -D0.15/-0.15
+        echo "Reference decade: 2010-2020" | gmt text -R$LON_MIN_GMT/$LON_MAX_GMT/$LAT_MIN_GMT/$LAT_MAX_GMT  -JM6i -F+f10+cTL -D0.15/-0.7
+        # SHYFEM boundary node
+        gmt plot @shyfem_BC_nodes.csv     -Wfaint    -Sc0.15c   -Gred   
+        #******** Boundary points selected ********
+        gmt plot @monitored_points_boundary.csv    -Wfaint    -Sc0.15c   -Gblue   
+        gmt text @monitored_points_boundary.csv    -F+f8p,Helvetica,black+jLT -D0.08c/-0.08c
+        #******** Boundary points selected ********
+        gmt plot @monitored_points_internal.csv    -Wfaint    -Sc0.15c   -Ggreen 
+        gmt text @monitored_points_internal.csv    -F+f8p,Helvetica,black+jLT -D0.08c/-0.08c
+        # Draw the colorbar, with proper font size
+        gmt set   FONT_LABEL 12p,Helvetica
+        gmt colorbar  -DJBC+w15c/0.7c  -Ccolors_temp.cpt -B1.0  -B+l"Sea surface delta temperature [@.C]"
+gmt end
+
+done
+
+rm FILE2PROC_link.ln  # the link will be removed because it changes at each data file
+
+done < initialization_file_temp.txt 

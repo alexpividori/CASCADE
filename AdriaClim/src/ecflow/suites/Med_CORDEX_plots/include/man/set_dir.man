@@ -1,0 +1,8 @@
+=================================================================================================
+                                          set_dir manual
+=================================================================================================
+
+This is the manual of set_dir task. This is a very simple code with the only aim to create the temporary 
+directory inside the scratch region to be used for all the temporary operations. Furthermore all
+the useful scripts contained in codes/Med_CORDEX_plots_scr/ will be copied inside that directory
+to be used for the necessary editing operations. 

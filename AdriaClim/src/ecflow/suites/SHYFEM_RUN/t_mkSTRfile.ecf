@@ -1,0 +1,87 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at creating SHYFEM's STR file,
+#                  strating from its related template.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - SHYFEM's STR template file;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-01-11.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Prepare the STR file, starting from its related template, by the use of a
+# "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%SHY_SIM_DESCRIPTION%%%%/$SHY_SIM_DESCRIPTION/g
+    s/%%%%SHY_SIM_NAME%%%%/$SHY_SIM_NAME/g
+    s/%%%%SHY_BASIN_FILENAME%%%%/$SHY_BASIN_FILENAME/g
+    s/%%%%SHY_ITANF%%%%/$SHY_ITANF/g
+    s/%%%%SHY_ITEND%%%%/$SHY_ITEND/g
+    s/%%%%SHY_ITMOUT%%%%/$SHY_ITMOUT/g
+    s/%%%%SHY_ITMCON%%%%/$SHY_ITMCON/g
+    s/%%%%SHY_ITMEXT%%%%/$SHY_ITMEXT/g
+    s/%%%%SHY_ITMFLX%%%%/$SHY_ITMFLX/g
+    s/%%%%SHY_ITMRST%%%%/$SHY_ITMRST/g
+    s/%%%%SHY_IDTRST%%%%/$SHY_IDTRST/g
+    s/%%%%SHY_ITRST%%%%/$SHY_ITRST/g
+    s/%%%%SHY_DATE%%%%/$SHY_DATE/g
+    s/%%%%RESTRT_FILE_LINK%%%%/${RESTRT_FILE_LINK//\//\\/}/g
+EOF
+sed -f $SEDFILE ${SHY_STR_FILE_TPL##*/} > $SHY_STR_FILENAME
+# Check the outcome of the preparation of the STR file:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tFile: ${SHY_STR_FILENAME} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! File: ${SHY_STR_FILENAME} unsuccessfully created. ABORT..."; ERROR
+fi
+# If the "sedfile" exists
+if [[ -e $SEDFILE ]]; then
+    # Remove it and inform the user
+    rm $SEDFILE; echo -e "\tFile: ${SEDFILE} removed.\n"
+fi
+# If the link to the STR template file exists
+if [[ -e ${SHY_STR_FILE_TPL##*/} ]]; then
+    # Remove it and inform the user
+    rm ${SHY_STR_FILE_TPL##*/}; echo -e "\tLink: ${SHY_STR_FILE_TPL##*/} removed."
+fi
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

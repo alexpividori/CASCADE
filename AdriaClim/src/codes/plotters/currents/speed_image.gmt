@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+#******************************************************************************
+#
+# DESCRIPTION:      This GMT script uses 2 netCDF files containing uo and vo like
+#                   x and y components of water velocity. It Creates a new netCDF file
+#                   (speed.nc) by grdmath module containing the speed velocity module
+#                   used for the contour (grd contour module). The color scale is created
+#                   with makecpt module from 0 to 0.35 m/s values. It is created only 
+#                   once and used after modified the color of back ground from dark gray to
+#                   white.
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (currents);
+#                    
+#                     
+#
+#
+# DEVELOPER:        Alex Pividori (alex.pividori@arpa.fvg.it)
+#                   ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: NCL 6.0.0.
+#
+# CREATION DATE:    12/04/2021.
+#
+# MODIFICATIONS:    -Inserting of contour plot with module of velocity
+#                   -Inserting of vectorial field.
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+# gmt makecpt -Crainbow -T0./0.6/0.01 > s_im.cpt    # colors.cpt will not be created each time because I modified the background color to white.
+gmt begin speed_image png 
+# gmt grdmath -R13./13.55/45.5/45.85   @file_uo.nc 2 POW  @file_vo.nc 2 POW ADD SQRT = speed.nc # compute module velocity to avoid anothe file .nc
+#  gmt coast -R13./13.55/45.5/45.85  -Bx+lcggc  -Df -JM6i -B+t"Velocity at first level depth = 1,2 m" -Ggray 
+  gmt basemap -R13./13.55/45.5/45.85  -JM6i -B+t"Velocity at first level depth = 1,2 m" 
+  gmt grdimage @speed.nc -R13./13.55/45.5/45.85  -JM6i -B -Cs_im.cpt
+  gmt grdvector  file_uo.nc file_vo.nc -R13./13.55/45.5/45.85  -JM6i  -Q0.1c+e+jc -Sl0.3c -Wsolid -Ix100   # +e add the head of the vector
+  gmt colorbar -Dx8c/2.5c+w12c/0.5c+jTC+h  -Cs_im.cpt -Baf+l"Water velocity [m/s]"
+gmt end show                                                                                     # +jc centers vector on the node location
+                                                                                                 # -Sl0.5c uses a constant lenght vector
+#         -DjCT+w4i+o0/2c+h                                                               # to indicate the speed direction.

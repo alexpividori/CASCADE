@@ -1,0 +1,18 @@
+# ************************************
+# * SIMULATIONS ID: CHARACTERS 12-13 *
+# ************************************
+# The table below defines the meaning of characters 12-13 in the alphanumeric
+# identification code, of the simulations already performed in the frame of the
+# AdriaClim INTERREG IT-HR project, by ARPA FVG (PP11).
+# It is worth to remind that characters 12-13 are reserved to the identification
+# number of the type of initial and boundary conditions, and forcing.
+# To know how to use this table, read the README file belonging to this
+# directory.
+# ************************************
+ID;Synthetic description;Comments
+00;Sensitivity to rivers;Run to be used for sensitivity studies to riverine freshwater input
+A0;Spin-up;Run to be used for spin-up time studies
+AB;Benchmark;Benchmark run
+C0;Reference run for sensitivity tests;Reference run to be perturbed for running sensitivity tests
+D0;Sensitivity to boundary conditions;Run with perturbed boundary conditions, with respect to a reference run
+D1;Sensitivity to boundary conditions and meteorological forcing;Run with perturbed boundary conditions and meteorological forcing, with respect to a reference run

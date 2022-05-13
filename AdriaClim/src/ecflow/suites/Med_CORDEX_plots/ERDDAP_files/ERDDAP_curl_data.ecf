@@ -1,0 +1,125 @@
+%manual
+%include <man/ERDDAP_curl_data.man>
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <etc/general_ERDDAP.ini>
+
+#================================================================================
+#
+# Arpa FVG - Dowload data script
+#
+# Author: Pividori Alex
+# Name of File: ERDDAP_curl_data.ecf
+#
+# Ver.1.0 - 03/01/2022
+# Dowload ALL files from ERDDAP official site
+#
+# Ver.1.1 - 03/01/2022
+# Add refernece path for file  
+#
+#=================================================================================
+
+module load $cdo_module  2>/dev/null
+cd $tmp_dir_root         || ERROR
+
+echo "Passage to $tmp_dir_root happened with success"
+
+#===============================================================================
+#                                 DOWNLOAD CYCLE
+#===============================================================================
+
+n_line=1
+
+while IFS=";" read   VariableName CMIP5ExperimentName link_suffix file_name_root Frequency StartTime EndTime 
+do
+
+	if [[ ! -d $tmp_dir_root/${file_name_root}_${n_line} ]]; then
+	     mkdir -p $tmp_dir_root/${file_name_root}_${n_line}   || \
+             { echo "The directory $tmp_dir_root/${file_name_root}_${n_line} can't be created"; ERROR ; }
+             echo "Directory $tmp_dir_root/${file_name_root}_${n_line} has been created"
+             cd $tmp_dir_root/${file_name_root}_${n_line}
+	else
+	     cd $tmp_dir_root/${file_name_root}_${n_line}
+	fi
+
+time_file=$StartTime
+
+while [[ ! $time_file -gt $EndTime ]]; do    # if time file is less or equal than end time
+
+     DWN_FILE=0
+     echo "time_file is $time_file"
+
+     file_name="${file_name_root}.nc.${time_file}_${time_file}"  # WARNING: Please consult how the file name is constructed. It can be composed in different ways
+
+     echo -e "\tThe file name is:\"$file_name\""
+
+     #CHECK IF THE FILE IS ALREADY DOWNLOADED
+
+        	if [ -f $file_name ]; then
+	              echo -e "WARNINGS: The file $file_name is already dowloaded!";
+                      continue               
+	        fi
+                                                     
+#The ALL directory is a flat directory with links to all the netcdf files present in the whole MEDCORDEXPATH.
+#VariableName Domain GCMModelName CMIP5ExperimentName CMIP5EnsembleMember RCMModelName RCMVersionID Frequency StartTime EndTime
+
+output_name="${VariableName}_MED8_BASIN-00_${CMIP5ExperimentName}_AdriaClim_${Frequency}_${time_file}.nc"
+
+curl --compressed -g 'http://erddap.cmcc-opa.eu/erddap/files/'${link_suffix}/${time_file}/${file_name}  -o ./$output_name &>/dev/null || DWN_FILE=1
+             
+	if [[ $DWN_FILE -eq 0 ]]; then                                                        
+	echo -e "\t The file \"$file_name\" has been downloaded"
+	else
+	echo -e "\t WARNING:The file \"$file_name\" hasn't been downloaded"
+	fi
+
+#===========================================
+#         Data editing for ERDDAP files
+#===========================================
+
+if [[ "$VariableName" == "sosaline" || "$VariableName" == "sossheig" || "$VariableName" == "sosstsst" || "$VariableName" == "multi" ]]; then
+	cdo  -setvals,0.0000,9.96921e+36  -selname,sosaline,sossheig,sosstsst $output_name  selected_$output_name || { echo "cdo -selname or -setvals error"; ERROR ;}
+        rm $output_name || { echo "File remotion error"; ERROR ;}
+elif [[ "$VariableName" == "uo" ]]; then
+        cdo  -setvals,0.0000,9.96921e+36  -selname,vozocrtx                   $output_name  selected_$output_name || { echo "cdo -selname or -setvals error"; ERROR ;}
+        rm $output_name || { echo "File remotion error"; ERROR ;}
+elif [[ "$VariableName" == "vo" ]]; then
+        cdo  -setvals,0.0000,9.96921e+36  -selname,vomecrty                   $output_name  selected_$output_name || { echo "cdo -selname or -setvals error"; ERROR ;}
+        rm $output_name || { echo "File remotion error"; ERROR ;}
+else
+	mv $output_name selected_$output_name
+fi
+
+#********************************************
+
+#if [[ ! "${Frequency}" == "mon" ]]; then
+#     echo "The selected_$output_name is not a monthly file. The monthly mean will be created"
+#     cdo -monmean   selected_$output_name  multi_MED8_BASIN-00_${CMIP5ExperimentName}_AdriaClim_mon_${time_file}.nc || { echo "cdo Monthly mean error"; ERROR ;}
+#     rm  selected_$output_name || { echo "File remotion error"; ERROR ;}
+#fi
+
+#============================================
+#               Change Year
+#============================================
+
+(( time_file++ ))
+
+done
+
+(( n_line++ ))
+
+done < $init_dir/initialization_file_download.txt
+
+echo -e "\t File download has been terminated"
+#END OF FILE
+
+echo "The task is now COMPLETED"
+
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+
+

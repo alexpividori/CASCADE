@@ -1,0 +1,149 @@
+#!/bin/bash
+
+# *****************************************************************************
+#
+#  DESCRIPTION:      this job script is aimed at preprocessing a set of daily
+#                    WRF model NetCDF data files for PREC_ACC_NC (accumulated
+#                    grid scale precipitation over "prec_acc_dt" periods of
+#                    time), in order to produce a single FEM file for the
+#                    entire length of a considered time period, ready and
+#                    suitable to be used for SHYFEM simulations.
+#
+#  EXTERNAL CALLS:   - "nc2fem" SHYFEM's intrinsic tool: this tool allows to
+#                       convert NetCDF (.nc) files to FEM (.fem) ones.
+#                       It is assumed that this tool lies in the following
+#                       directory:
+#                       /lustre/arpa/minighera/shyfem/fem3d
+#
+#  EXTERNAL FILES:   - data list file: ASCII file, the name of which is
+#                      provided to the job script through the "qsub -v"
+#                      option, containing the list of daily WRF model
+#                      NetCDF data files to be preprocessed.
+#                      This file looks as follows:
+#
+#                      root_dir/PREC_ACC_NC-day_1.nc
+#                      root_dir/PREC_ACC_NC-day_2.nc
+#                      ...
+#
+#                      where
+#
+#                      root_dir = root directory storing data files
+#                      day_i    = specific day (YYYYMMDD00-YYYMMDD23) of the
+#                                 considered time period (e.g. 2017110100-2017110123)
+#
+#                      e.g.
+#
+#                      PREC_ACC_NC-2017110100-2017110123.nc
+#                      PREC_ACC_NC-2017110200-2017110223.nc
+#                      ...
+#
+#  DEVELOPER:        Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:    09/06/2021.
+#
+#  MODIFICATIONS:    17/06/2021 ---> addition of job directives, mandatory for
+#                                    INTERREG IT-HR AdriaClim jobs.
+#
+#  VERSION:          0.2.
+#
+# *****************************************************************************
+
+# ******************
+#  JOB'S DIRECTIVES
+# ******************
+
+#PBS -P AdriaClim
+#PBS -W umask=0002
+##PBS -S /bin/bash
+##PBS -V
+#PBS -N rain_wrf2shyfem_preproc
+#PBS -o rain_wrf2shyfem_preproc-stdout
+#PBS -e rain_wrf2shyfem_preproc-stderr
+#PBS -q arpa
+#PBS -l nodes=1:ppn=24
+#PBS -l walltime=00:45:00
+#PBS -W block=true
+##PBS -m abe
+##PBS -M alessandro.minigher@arpa.fvg.it
+
+# ************
+#  ACTUAL JOB
+# ************
+
+# Move to the directory where the job has been submitted
+cd $PBS_O_WORKDIR
+
+# Define the environmental modules to be loaded
+module_cdo="cdo/1.9.8/intel/19.1.1.217-prtc7xl"
+module_nco="nco/4.7.9/intel/19.1.1.217-azxk4mh"
+module_arpa="arpa"
+module_shyfem="shyfem/7.5.70"
+
+# Define the name of the temporary working directory to be used for storing
+# daily merged data files
+workdir="daily_data"
+
+# If the working directory does not exist, create it
+if [[ ! -d "$workdir" ]]; then mkdir -p $workdir; fi
+# Move into the working directory
+cd $workdir
+
+# Purge and load the CDO (Climate Data Operators) environmental module
+module purge
+module load $module_cdo
+# Define an empty array to be filled with the daily data files
+daily_files_array=()
+# Define the full path of the data list file, assuming that this lies in the
+# directory where the job has been submitted and its name ($file_list) is
+# provided through the "qsub -v" option
+list="$PBS_O_WORKDIR/$file_list"
+# For each daily data file
+while read file; do
+       # Store the daily file in the array previously created (append)
+       daily_files_array+=("$file")
+done < $list
+
+# Define the name of the final, time merged output file, assuming that the
+# files to be merged in time are named as follows, the first file is
+# related to the first day of the desired time period and the last file is
+# related to the last day of the desired time period:
+# rain-YYYYMMDD00-YYYYMMDD23.nc
+# Moreover, it is assumed that the files to be merged in time result from the
+# WRF model employed at the Regional Center for Environmental Modeling - CRMA,
+# for the "Alpe Adria" domain
+prefix="rain"
+FILEOUT=$prefix"_WRF-CRMA_AlpeAdria_"$(echo ${daily_files_array[0]} | cut -d"-" -f 2)"-"$(echo ${daily_files_array[-1]} | cut -d"-" -f 3)
+# Define the name of a temporary output file
+FILEOUT_tmp="file_tmp.nc"
+# Merge the daily files into a single file through CDO
+cdo --no_history mergetime "${daily_files_array[*]}" $FILEOUT_tmp
+# Rename the time dimension of the daily merged file from XTIME to Time through
+# NCO (NetCDF Operators), which are properly loaded avoiding conflicts (this
+# process is required due to the time problems resulting from the application
+# of newest CDO versions to WRF model data)
+module purge
+module load $module_nco
+ncrename -h -d XTIME,Time "$FILEOUT_tmp"
+# Convert precipitation units through NCO: mm/h ---> mm/day
+ncap2 -h -s 'PREC_ACC_NC=PREC_ACC_NC*24.0f;' "$FILEOUT_tmp" "$FILEOUT"
+# Provide a suitable description attribute to precipitation
+ncatted -h -a description,PREC_ACC_NC,o,c,"ACCUMULATED GRID SCALE PRECIPITATION OVER prec_acc_dt PERIODS OF TIME (expr. in mm/day)" "$FILEOUT"
+# Convert the final, time merged file from NetCDF to FEM through "nc2fem"
+# SHYFEM's intrisic tool (this process produces a FEM file named "out.fem").
+# It is assumed that the "nc2fem" tool lies in the following directory:
+# /lustre/arpa/minighera/shyfem/fem3d
+module purge                                         # avoid conflicts
+module load $module_arpa                             # load ARPA mods first
+module load $module_shyfem                           # load SHYFEM's needed mods
+ln -sv /lustre/arpa/minighera/shyfem/fem3d/nc2fem    # symbolic link to the tool
+./nc2fem -vars PREC_ACC_NC -descrp rain "$FILEOUT"   # convert: NetCDF ---> FEM
+# Move the final, time merged NetCDF and converted FEM files a level up
+mv "$FILEOUT" ../
+mv "out.fem" ../
+# Move a level up, rename the converted FEM file and remove the working
+# directory
+cd ..
+mv "out.fem" $(echo "$FILEOUT" | cut -d"." -f 1)".fem"
+rm -r "$workdir"

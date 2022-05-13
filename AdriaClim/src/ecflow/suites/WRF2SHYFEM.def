@@ -1,0 +1,110 @@
+suite WRF2SHYFEM
+   #
+   #
+   # **********************
+   # * DEFINITION SECTION *
+   # **********************
+   #
+   #
+   #  +-------+
+   #  | CLOCK |
+   #  +-------+
+   #
+      clock real   # real clock
+   #
+   #
+   #  +-------------------------+
+   #  | ENVIRONMENTAL VARIABLES |
+   #  +-------------------------+
+   #
+   #  Directory used as a prefix portion of the path of the job files created
+   #  by ecFlow server
+   #
+      edit ECF_HOME /lustre/arpa/scratch/ecflow/AdriaClim/
+   #
+   #  Directory used to find the ecFlow files
+   #
+      edit ECF_FILES /u/arpa/minighera/AdriaClim/src/ecflow/suites/WRF2SHYFEM
+   #
+   #  Directory used to find the files to be included in the nodes
+   #
+      edit ECF_INCLUDE /u/arpa/minighera/AdriaClim/src/ecflow/suites/WRF2SHYFEM/include
+   #
+   #  Number of times a job should be rerun if it aborts (default is 2) 
+   #
+      edit ECF_TRIES 1
+   #
+   #  Number of seconds to sleep at the end of each task (not necessary, but
+   #  suggested to avoid task overlapping)
+   # 
+      edit SLEEP 3
+   #
+   #  Suite initialisation file: this is the path to the file storing
+   #  environmental variables characterizing the whole suite (it is a feature
+   #  of the ARPA FVG - CRMA implementation of ecFlow)
+   #
+   #  edit SUITE_INI_FILE /u/arpa/minighera/AdriaClim/src/ecflow/suites/WRF2SHYFEM/include
+   #
+   #  This is the root directory for job summary reports storage. If it is not
+   #  defined, the reports are going to be saved in %ECF_HOME%. The summary is
+   #  a csv file (%YYYY%_ecFlow_jobs-summary.csv)
+   #
+      edit JOBS_REPORT_DIR /lustre/arpa/AdriaClim/data/monit/ecflow/jobs_sum
+   #
+   #
+   # ****************
+   #  FAMILY SECTION
+   # ****************
+   #
+   #
+   #  +----------------------------------------------------------------------+
+   #  | This is the family for checking data files: the existence of mete-
+   #  | orological forcing produced by the WRF model is checked. Moreover,
+   #  | for each class of forcing (wind, heat and rain), the list of the da-
+   #  | ta files to be merged and processed is produced.
+   #  +----------------------------------------------------------------------+
+   #
+      family sentinel
+         edit DS 2017110100
+         edit DE 2019010223
+         family check_wind
+            task t_check_shyfem_inputs
+            edit VARS "wind"
+         endfamily
+         family check_heat
+            task t_check_shyfem_inputs
+            edit VARS "heat"
+         endfamily
+         family check_rain
+            task t_check_shyfem_inputs
+            edit VARS "rain"
+         endfamily
+      endfamily
+   #
+   #
+   #  +----------------------------------------------------------------------+
+   #  | This is the family for preprocessing: meteorological forcing produ-
+   #  | ced in output by the WRF model are processed in order to produce
+   #  | proper inputs for the SHYFEM model.
+   #  +----------------------------------------------------------------------+
+   #
+      family shyfem_preproc
+         family preproc_wind
+            task t_preproc_shyfem_inputs
+            edit VARS "wind"
+            trigger ../../sentinel/check_wind/t_check_shyfem_inputs == complete
+         endfamily
+         family preproc_heat
+            task t_preproc_shyfem_inputs
+            edit VARS "heat"
+            trigger ../../sentinel/check_heat/t_check_shyfem_inputs == complete
+         endfamily
+         family preproc_rain
+            task t_preproc_shyfem_inputs
+            edit VARS "rain"
+            trigger ../../sentinel/check_rain/t_check_shyfem_inputs == complete
+         endfamily
+      endfamily
+   #
+   #
+endsuite

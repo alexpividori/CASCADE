@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+#******************************************************************************
+#
+# DESCRIPTION:       This bash script is used to use external netCDF files
+#                    contained in a particular directory, cut a particular region
+#                    defined by "initialization_file.txt" and save the cutted file
+#                    inside an output directory.  
+#                    The cut the Mediterranean region only from Otranto to Monfalcone,
+#                    the lat/lon region used is: 39.8;46.0;11.9;19.8
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (currents);
+#                     Containing Temperature, Salinity, Currents or whatever
+#                   - Initialization_file.txt in the usual format:
+#                     serial_code,lat_min,lat_max,lon_min,lon_max,denomination_name,type,time_step,depth  
+#           
+#
+# DEVELOPER:         Alex Pividori (alex.pividori@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: Bash 
+#                   CDO version 1.9.8
+#
+# CREATION DATE:    23/04/2021.
+#
+# MODIFICATIONS:    23/04/2021 --> 
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+#PBS -N array
+#PBS -P AdriaClim
+#PBS -o stdout
+#PBS -e stderr
+#PBS -q arpa
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:30:00
+##PBS -m abe
+#PBS -M alex.pividori@arpa.fvg.it
+#PBS -J 0-%%n_files%%
+#PBS -W block=false
+
+module load cdo/1.9.8/intel/19.1.1.217-prtc7xl   &>/dev/null  # in job you have to charge the module each time
+echo "I loaded the cdo module"
+
+ input_dir="%%input_dir%%"
+ output_dir="%%output_dir%%"
+ file_list_array="%%file_list_array%%"
+
+
+if [[ $PBS_ARRAY_INDEX -eq 0 ]]; then { echo "I'm the job array number 0. Now I will be skipped."; exit; } ; fi  
+                                                 # 0'th array is a useless job. It is only a trick to allow jobs array for only 1 cut file
+
+#==================================================================================================
+
+  ind=1
+  while IFS=";" read -r  file_name               # the number of lines represents the number of files to be cutted
+  do                                            
+
+    if [[ $PBS_ARRAY_INDEX -le $ind ]]; then     # -le instead of -eq is a surplus security
+                   echo "Now I'm cutting the ${ind}-th element"
+                   cdo  --no_history  sellonlatbox,11.9,19.8,39.8,46.0    $input_dir/$file_name  $output_dir"/adriatic_"$file_name || \
+                   { if [[ -f $input_dir/../stderr  ]]; then chmod +r $input_dir/../stderr ; fi ; exit 1; }
+    exit 
+    else
+         (( ind = ind + 1 ))    # increment index of reference
+    fi
+
+  done <  $file_list_array                                      
+

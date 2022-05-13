@@ -1,0 +1,202 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this job template is aimed at drawing contour plots of the
+#                  horizontal distribution of the spin-up time, estimated for a
+#                  certain oceanographic variable, at constant depth.
+#                  Specifically, a figure is drawn for each depth (vertical
+#                  layer, in case of 3D variables) to be considered.
+#                  This is performed by the use of a job script, prepared from
+#                  its related template, through a "sedfile" (see the EXTERNAL
+#                  CALLS comment section).
+#                  This is performed through GMT 6.0.0 commands.
+#
+#  EXTERNAL CALLS: - job template aimed at drawing contour plots of the
+#                    horizontal distribution of the spin-up time, estimated for
+#                    a certain oceanographic variable, at constant depth.
+#                    Specifically, a figure is drawn for each depth (vertical
+#                    layer, in case of 3D variables) to be considered.
+#                    This is performed through GMT 6.0.0 commands.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                    simulation;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - suite initialisation file, specific for a certain
+#                    variable (e.g. T, S, u, v, z);
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-11-18.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to a given simulation
+# (files of this type are assumed to be identical, except for the
+# identification code of the simulation, SHY_SIM_ID). The basename (extension
+# excluded) of this initialisation file is provided by a suite variable
+%include <etc/%SIMA%.ini>
+# Include a specific initialisation file, peculiar to the given variable (e.g.
+# T, S, u, v, z). The basename (extension exluded, but dot included) of this
+# initialisation file is provided by a family variable
+%include <etc/%TOPROC%ini>
+
+# **********************
+#  START OF MAIN SCRIPT
+# **********************
+
+# Define the default status for the submission of the desired job script:
+#  - OKKO=0 -> all went OK
+#  - OKKO=1 -> something went KO
+OKKO=0
+# Define the default status for the creation of directories:
+#  - OKKO_mkdir=0 -> all went OK
+#  - OKKO_mkdir=1 -> something went KO
+OKKO_mkdir=0
+# Define the name (full path) of a working directory (to be removed after
+# its usage), by the use of both suite variables and variables retrieved in
+# the initialisation file peculiar to the simulations
+work_dir="${SCRATCH_DIR}/$(mktemp -u %TOPROC%XXXXX)"
+# Define the basename of the job to be used to ...
+JOB="${JOB_GMT_TPL##*/}"   # consider the basename only
+JOB="${JOB//.tpl/}"        # remove the ".tpl" extension
+# Define the name of the directory aimed at storing post-processing files
+# related to spin-up tests, for a given variable, by the use of variables
+# retrieved in the initialisation files
+SHY_POSTPROC_SPINUP_SIMS_VAR_DIR="${SHY_POSTPROC_SPINUP_SIMS_DIR}/${VAR}"
+# Define the name (full path) of the file aimed at containing estimates of the
+# spin-up time
+SPINUP_FIT_FILENAME="${SHY_POSTPROC_SPINUP_SIMS_VAR_DIR}/${SPINUP_FIT_FILENAME}"
+# Define the spatial dimension of the variable to be considered (e.g. zeta.2d.
+# -> 2d; temp.3d. -> 3d)
+TOPROC="%TOPROC%"
+DIM=`echo "$TOPROC" | cut -d'.' -f2`
+# Define the format of the figures to be drawn (e.g. .png -> png)
+FIG_FORMAT=`echo "$FIG_FORMAT" | cut -d'.' -f2`
+
+# Inform the user about the current directory
+echo -e "\n\tCurrent directory: $(pwd).\n"
+
+# Check if the working directory is already existent:
+#  - if it already exists
+if [[ -e $work_dir ]]; then
+    # Inform the user and remove it
+    echo -e "\n\tDirectory: ${work_dir} already exists. Removing it and creating it from scratch...\n"
+    rm -r $work_dir
+#  - if it does not exist
+else
+    # Inform the user
+    echo -e "\n\tDirectory: ${work_dir} does not exist. Creating it...\n"
+fi
+# Create the working directory
+mkdir $work_dir || OKKO_mkdir=1
+# Check the outcome of the creation of the working directory:
+#  - if all went OK
+if [[ OKKO_mkdir -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tDirectory: ${work_dir} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Directory: ${work_dir} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# Move to the working directory, informing the user
+echo -e "\n\tChange directory: moving to ${work_dir}...\n"; cd $work_dir
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Prepare the job to be used to draw contour plots, starting from its related
+# template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_GMT_TPL_N/g
+    s/%%%%JOB_o%%%%/$JOB_GMT_TPL_o/g
+    s/%%%%JOB_e%%%%/$JOB_GMT_TPL_e/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_GMT_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_GMT_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_GMT_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%GMT_MOD%%%%/${GMT_MOD//\//\\/}/g
+    s/%%%%SHY_POSTPROC_SPINUP_SIMS_VAR_DIR%%%%/${SHY_POSTPROC_SPINUP_SIMS_VAR_DIR//\//\\/}/g
+    s/%%%%SPINUP_FIT_FILENAME%%%%/${SPINUP_FIT_FILENAME//\//\\/}/g
+    s/%%%%SIMA%%%%/%SIMA%/g
+    s/%%%%SIMB%%%%/%SIMB%/g
+    s/%%%%VAR%%%%/$VAR/g
+    s/%%%%DIM%%%%/$DIM/g
+    s/%%%%FIG_FORMAT%%%%/$FIG_FORMAT/g
+    s/%%%%LON_MIN_GMT%%%%/$LON_MIN_GMT/g
+    s/%%%%LON_MAX_GMT%%%%/$LON_MAX_GMT/g
+    s/%%%%LAT_MIN_GMT%%%%/$LAT_MIN_GMT/g
+    s/%%%%LAT_MAX_GMT%%%%/$LAT_MAX_GMT/g
+    s/%%%%TAU_MIN_GMT%%%%/$TAU_MIN_GMT/g
+    s/%%%%TAU_MAX_GMT%%%%/$TAU_MAX_GMT/g
+    s/%%%%TAU_STEP_GMT%%%%/$TAU_STEP_GMT/g
+    s/%%%%TITLE_GMT%%%%/$TITLE_GMT/g
+    s/%%%%CONTOUR_HOD_PLOTS_ARCHIVE%%%%/$CONTOUR_HOD_PLOTS_ARCHIVE/g
+EOF
+sed -f $SEDFILE $JOB_GMT_TPL > $JOB
+# If the "sedfile" exists, remove it
+if [[ -e $SEDFILE ]];then rm $SEDFILE; fi
+# Check the outcome of the preparation of the job:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\n\tJob: ${JOB} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\n\tERROR! Job: ${JOB} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# If the "sedfile" exists, remove it
+if [[ -e $SEDFILE ]];then rm $SEDFILE; fi
+
+# Check if the job exists:
+#  - if it exists
+if [[ -e $JOB ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} exists. Submitting to HPC queues...\n"
+#  - if it does not exist
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} does not exist. ABORT...\n"; ERROR
+fi
+# Submit the job to HPC queues
+qsub $JOB || OKKO=1
+# Check the outcome of the submission:
+#  - if all went OK
+if [[ OKKO -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} successfully submitted to HPC queues.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} unsuccessfully submitted to HPC queues. ABORT...\n"; ERROR
+fi
+
+# Remove the working directory, informing the user
+sleep 3
+rm -r $work_dir
+echo -e "\n\tDirectory: ${work_dir} removed.\n"
+
+# ********************
+#  END OF MAIN SCRIPT
+# ********************
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

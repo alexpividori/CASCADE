@@ -1,0 +1,304 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at splitting/unpacking the
+#                  desired simulation's EXT file (see the EXTERNAL CALLS
+#                  comment section) and at drawing the following plot, starting
+#                  from EXT ASCII files (namely files obtained by splitting the
+#                  EXT file): time series plot of a certain variable (e.g.
+#                  salinity), for a given list of EXT nodes (namely nodes of the
+#                  computational mesh for which outputs are provided with
+#                  higher frequency).
+#                  The plot is drawn every N minutes, from the simulation's
+#                  start, until the simulation's end; N is provided by the user
+#                  through an initialisation file (see the EXTERNAL FILES
+#                  comment section).
+#                  Splitting and drawing are carried out by the use of two
+#                  jobs, prepared from their related templates, through a
+#                  "sedfile" (see the EXTERNAL CALLS comment section).
+#
+#  EXTERNAL CALLS: - job template aimed at splitting the run's EXT file (see
+#                    the EXTERNAL FILES comment section);
+#                  - job template aimed at drawing the type of plot described
+#                    above (see the DESCRIPTION comment section).
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - function managing the PBS queue job submission;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - EXT file: SHYFEM run's EXT file (.ext);
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-12.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include the function managing the PBS queue job submission
+%include <qsub_4_bash.h>
+# Include a specific initialisation file, peculiar to the given simulation. The
+# basename (extension excluded) of this initialisation file is provided by a
+# family variable
+%include <etc/%SIM%.ini>
+
+#  --- START OF FUNCTIONS ---
+
+# Check the outcome of the creation of the job and if the job itself exists
+check_mkjob () {
+    # Check the outcome of the creation of the job and if the job itself exists
+    #  - if all went OK and the job exists
+    if [[ OKKO -eq 0 ]] && [[ -e $1 ]]; then
+        # Inform the user
+        echo -e "\tJob: $1 successfully created. Ready to be submitted to HPC queues...\n"
+    #  - if something went KO or the job does not exist
+    else
+        # Reset the default status for the creation of the job
+        OKKO=0
+        # Inform the user and abort
+        echo -e "\tERROR! Job: $1 unsuccessfully created. ABORT..."; ERROR
+    fi
+}
+
+# Remove the given file, if existent
+rm_file () {
+    # If the file provided to the function exists
+    if [[ -e $1 ]]; then
+        # Remove it and inform the user
+        rm $1; echo -e "\tFile: $1 removed.\n"
+    fi
+}
+
+# Remove the given directory, if existent
+rm_dir () {
+    # If the directory provided to the function exists
+    if [[ -e $1 ]]; then
+        # Remove it and inform the user
+        rm -r $1; echo -e "\tDirectory: $1 removed.\n"
+    fi
+}
+
+# Remove the given job, if existent
+rm_job () {
+    # If the job provided to the function exists
+    if [[ -e $1 ]]; then
+        # Remove it and inform the user
+        rm $1; echo -e "\tJob: $1 removed.\n"
+    fi
+}
+
+# Check the outcome of the submission of the job
+check_jobsub () {
+    # Check the outcome of the submission:
+    #  - if all went OK
+    if [[ OKKO -eq 0 ]]; then
+        # Inform the user
+        echo -e "\tJob: $1 successfully submitted to HPC queues.\n"
+    #  - if something went KO
+    else
+        # Reset the default status for the submission of the job
+        OKKO=0
+        # Inform the user and abort
+        echo -e "\tERROR! Job: $1 unsuccessfully submitted to HPC queues. ABORT..."; ERROR
+    fi
+}
+
+# Move the given file (if existent) into the upward directory
+mv_file_up () {
+    # If the file provided to the function exists
+    if [[ -e $1 ]]; then
+        # Move it into the upward directory and inform the user
+        mv $1 ../; echo -e "\tFile: $1 moved into the upward directory.\n"
+    fi
+}
+
+#  --- END OF FUNCTIONS ---
+
+# Define the default status for the creation and submission of the desired job
+# script:
+#  - OKKO=0 -> all went OK
+#  - OKKO=1 -> something went KO
+OKKO=0
+# Define the default status for the creation of directories:
+#  - OKKO_mkdir=0 -> all went OK
+#  - OKKO_mkdir=1 -> something went KO
+OKKO_mkdir=0
+
+# Define the basename of the job to be used for splitting the EXT file,
+# starting from that of its related template (provided in the initialisation
+# file peculiar to the given simulation)
+JOB_SPLIT="${JOB_EXTSPLIT_TPL##*/}"   # consider the basename only
+JOB_SPLIT="${JOB_SPLIT//.tpl/}"       # remove the ".tpl" extension
+# Define the basename of the job to be used for plotting EXT ASCII files,
+# starting from that of its related template (provided in the initialisation
+# file peculiar to the given simulation)
+JOB_PLOT="${JOB_EXTPLOT_TPL##*/}"   # consider the basename only
+JOB_PLOT="${JOB_PLOT//.tpl/}"       # remove the ".tpl" extension
+
+# Define the name of a temporary working directory, where splitting the EXT
+# file
+WORKDIR_TMP=$(mktemp -u workdir.XXXXXX)
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Create the temporary working directory
+mkdir $WORKDIR_TMP || OKKO_mkdir=1
+# Check the outcome of the creation of the directory:
+#  - if all went OK
+if [[ OKKO_mkdir -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tDirectory: ${WORKDIR_TMP} successfully created.\n"
+    # Change directory and inform the user
+    echo -e "\tChange directory: moving into ${WORKDIR_TMP}..."; cd $WORKDIR_TMP
+    echo -e "\tCurrent directory: $(pwd).\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Directory: ${WORKDIR_TMP} unsuccessfully created. ABORT..."; ERROR
+fi
+
+# Define the basename of the EXT file to be splitted, with respect to the
+# current directory
+FILE2SPLIT="../${SHY_EXT_FILENAME}"
+
+# Create the job to be used for splitting the EXT file, starting from its
+# related template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_EXTSPLIT_TPL_N/g
+    s/%%%%JOB_o%%%%/$JOB_EXTSPLIT_TPL_o/g
+    s/%%%%JOB_e%%%%/$JOB_EXTSPLIT_TPL_e/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_EXTSPLIT_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_EXTSPLIT_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_EXTSPLIT_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%SHY_MOD%%%%/${SHY_MOD//\//\\/}/g
+    s/%%%%SHY_SHYELAB%%%%/${SHY_SHYELAB//\//\\/}/g
+    s/%%%%FILE2SPLIT%%%%/${FILE2SPLIT//\//\\/}/g
+EOF
+sed -f $SEDFILE $JOB_EXTSPLIT_TPL > $JOB_SPLIT || OKKO=1
+# Function calling: check the outcome of the creation of the job and if the job
+# itself exists
+check_mkjob "${JOB_SPLIT}"
+# Function calling: remove the "sedfile", if existent
+rm_file "${SEDFILE}"
+
+# Create the job to be used for plotting EXT ASCII files, starting from its
+# related template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_EXTPLOT_TPL_N/g
+    s/%%%%JOB_o%%%%/$JOB_EXTPLOT_TPL_o/g
+    s/%%%%JOB_e%%%%/$JOB_EXTPLOT_TPL_e/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_EXTPLOT_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_EXTPLOT_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_EXTPLOT_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%PY_MOD%%%%/${PY_MOD//\//\\/}/g
+    s/%%%%MINICONDA3_MOD%%%%/${MINICONDA3_MOD//\//\\/}/g
+    s/%%%%EXT_NODES_2_PLOT%%%%/$EXT_NODES_2_PLOT/g
+    s/%%%%VAR_EXT_T%%%%/$VAR_EXT_T/g
+    s/%%%%VAR_EXT_S%%%%/$VAR_EXT_S/g
+    s/%%%%VAR_EXT_Z%%%%/$VAR_EXT_Z/g
+    s/%%%%TITLE_EXT%%%%/$TITLE_EXT/g
+    s/%%%%XAXIS_EXT%%%%/$XAXIS_EXT/g
+    s/%%%%YAXIS_EXT_T%%%%/$YAXIS_EXT_T/g
+    s/%%%%YAXIS_EXT_S%%%%/$YAXIS_EXT_S/g
+    s/%%%%YAXIS_EXT_Z%%%%/$YAXIS_EXT_Z/g
+    s/%%%%FIGNAME_EXT_T%%%%/$FIGNAME_EXT_T/g
+    s/%%%%FIGNAME_EXT_S%%%%/$FIGNAME_EXT_S/g
+    s/%%%%FIGNAME_EXT_Z%%%%/$FIGNAME_EXT_Z/g
+EOF
+sed -f $SEDFILE $JOB_EXTPLOT_TPL > $JOB_PLOT || OKKO=1
+# Function calling: check the outcome of the creation of the job and if the job
+# itself exists
+check_mkjob "${JOB_PLOT}"
+# Function calling: remove the "sedfile", if existent
+rm_file "${SEDFILE}"
+
+# Define the run status by reading the run status file:
+#  - 0 -> run started (running)
+#  - 1 -> run completed
+RUN_STATUS_FILENAME="../${RUN_STATUS_FILENAME}"
+RUN_STATUS=$(<$RUN_STATUS_FILENAME)
+# While the simulation is running, but it is not completed yet
+while [ $RUN_STATUS -ne 1 ]; do
+    # Wait the desired number of seconds
+    sleep $(( SPY_SLEEP_MIN*60 ))
+    # Check if the EXT file exists:
+    #  - if it exists
+    if [[ -e $FILE2SPLIT ]]; then
+        # Inform the user
+        echo -e "\tFile: ${FILE2SPLIT} exists. Its content can be splitted and plotted.\n"
+        # Submit the job for splitting the EXT file to HPC queues
+        ecflow_qsub $JOB_SPLIT || OKKO=1
+        # Function calling: check the outcome of the submission of the job
+        check_jobsub "${JOB_SPLIT}"
+        # Submit the job for plotting EXT ASCII files to HPC queues
+        ecflow_qsub $JOB_PLOT || OKKO=1
+        # Function calling: check the outcome of the submission of the job
+        check_jobsub "${JOB_PLOT}"
+        # Copy the outputs (figures) produced by the job in the directory aimed
+        # at containing all the stuff related to the "spy" of the specific
+        # simulation, to be published on the Net
+        cp *$FIG_FORMAT $PUB_HTML_SHY_SPY_SIM_DIR; echo -e "\tFigures: copied in ${PUB_HTML_SHY_SPY_SIM_DIR}.\n"
+    #  - if it does not exist
+    else
+        # Inform the user
+        echo -e "\tFile: ${FILE2SPLIT} does not exist yet. Please wait..."
+    fi
+
+    # Redefine the run status by reading the run status file:
+    #  - 0 -> run started (running)
+    #  - 1 -> run completed
+    RUN_STATUS=$(<$RUN_STATUS_FILENAME)
+done
+
+# Function calling: remove the jobs, if existent
+rm_job "${JOB_SPLIT}"
+rm_job "${JOB_PLOT}"
+
+# Move all the figures (if existent) into the upward directory and inform the
+# user
+if ls *$FIG_FORMAT 1> /dev/null 2>&1; then mv *$FIG_FORMAT ../; echo -e "\tFigures: moved into the upward directory.\n"; fi
+# Function calling: move the standard error and standard output of the jobs
+# into the upward directory
+mv_file_up "${JOB_EXTSPLIT_TPL_o}"
+mv_file_up "${JOB_EXTSPLIT_TPL_e}"
+mv_file_up "${JOB_EXTPLOT_TPL_o}"
+mv_file_up "${JOB_EXTPLOT_TPL_e}"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving into the upward directory..."; cd ..
+echo -e "\tCurrent directory: $(pwd).\n"
+# Function calling: remove the temporary working directory, if existent
+rm_dir "${WORKDIR_TMP}"
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

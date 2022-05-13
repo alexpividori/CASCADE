@@ -1,0 +1,119 @@
+# ******************************************************************************
+#
+#  DESCRIPTION:   this "ecFlow" suite is dedicated to runs of the SHYFEM model.
+#                 A detailed description of the suite can be retrieved in its
+#                 related manual.
+#
+#  DEVELOPER:     Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                 ARPA FVG - SOC Stato dell Ambiente - CRMA
+#                 "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE: 2021-12-23.
+#
+#  MODIFICATIONS: none.
+#
+#  VERSION:       0.1.
+#
+# ******************************************************************************
+
+suite SHYFEM_RUN
+
+
+    # **********************
+    # * DEFINITION SECTION *
+    # **********************
+
+    # --- CLOCK ---
+
+    # Real clock
+    clock real
+
+    # --- ENVIRONMENTAL VARIABLES ---
+
+    # Directory used as a prefix portion of the path of the job files created
+    # by "ecFlow" server
+    edit ECF_HOME /lustre/arpa/scratch/ecflow/AdriaClim/
+
+    # Directory used to find the "ecFlow" files
+    edit ECF_FILES /lustre/arpa/AdriaClim/src/ecflow/suites/SHYFEM_RUN
+
+    # Directory used to find the files to be included in the nodes
+    edit ECF_INCLUDE /lustre/arpa/AdriaClim/src/ecflow/suites/SHYFEM_RUN/include
+
+    # Number of times a job should be rerun if it aborts (default is 2) 
+    edit ECF_TRIES 1
+
+    # Number of seconds to sleep at the end of each task (not necessary, but
+    # suggested to avoid task overlapping)
+    edit SLEEP 3
+
+    # Root directory used to store initialisation files (it is a feature of the
+    # ARPA FVG - CRMA implementation of "ecFlow")
+    edit SUITE_INI_FILE /lustre/arpa/AdriaClim/src/ecflow/suites/SHYFEM_RUN/include
+
+    # Root directory for job summary reports storage. If it is not defined, the
+    # reports are going to be saved in %ECF_HOME%. The summary is a csv file
+    # (%YYYY%_ecFlow_jobs-summary.csv)
+    edit JOBS_REPORT_DIR /lustre/arpa/AdriaClim/data/monit/ecflow/jobs_sum
+
+
+    # ******************
+    # * FAMILY SECTION *
+    # ******************
+
+    family SIM_1
+        # Identification code of the simulation to be run
+        edit SIM "1995F100D0_AB03"
+        family sentinel
+            task t_check_sim_id_consist
+            task t_check_sim_id
+                trigger t_check_sim_id_consist eq complete
+        endfamily
+        family mkdirs
+            trigger sentinel eq complete
+            task t_mkdirs
+        endfamily
+        family mkinputs
+            trigger mkdirs eq complete
+            task t_mklinks
+            task t_mkSTRfile
+                trigger t_mklinks eq complete
+        endfamily
+        family run
+            trigger mkinputs eq complete
+            task t_run_shyfem
+            task t_run_status_0
+                trigger t_run_shyfem eq submitted
+            task t_run_status_1
+                trigger t_run_shyfem eq complete
+        endfamily
+        family spy
+            trigger run/t_run_status_0 eq complete
+            family INF
+                task t_tail_INF_file
+                task t_INF_TS_min_max_plot
+            endfamily
+            family EXT
+                task t_EXT_split_and_plot
+            endfamily
+            family html
+                task t_mkhtml_sim
+                    trigger ../../run/t_run_status_0 eq complete
+                task t_rmhtml_sim
+                    trigger ../EXT eq complete and ../INF eq complete
+            endfamily
+        endfamily
+        family clean
+            trigger spy eq complete
+            task t_clean
+        endfamily
+        family archive
+            trigger clean eq complete
+            task t_archive_spy
+            task t_archive_sim
+                trigger t_archive_spy eq complete
+        endfamily
+    endfamily
+
+
+endsuite

@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+#******************************************************************************
+#
+# DESCRIPTION:      This GMT script uses 2 netCDF files containing uo and vo like
+#                   x and y components of water velocity. It Creates a new netCDF file
+#                   (speed.nc) by grdmath module containing the speed velocity module
+#                   used for the contour (grd contour module). The color scale is created
+#                   with makecpt module from 0 to 0.35 m/s values. It is created only 
+#                   once and used after modified the color of back ground from dark gray to
+#                   white.
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (currents);
+#                    
+#                     
+#
+#
+# DEVELOPER:        Alex Pividori (alex.pividori@arpa.fvg.it)
+#                   ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: NCL 6.0.0.
+#
+# CREATION DATE:    12/04/2021.
+#
+# MODIFICATIONS:    -Inserting of contour plot with module of velocity
+#                   -Inserting of vectorial field.
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+a=0
+
+file_cur="/u/arpa/pividoria/GMT_shyfem/speed_contour_fin/file_l.nc"
+
+# modules have to be charged
+
+while IFS=";" read   serial_name  lat_min lat_max   lon_min lon_max   diffusor_name   plot_type   delta_t_string   level_section_string  
+do
+
+# After read the initialization_file parameters, I use them to prepare the .nc files
+
+if [ "$plot_type" == "s" ]
+then
+  ncl  lev=$level_section_string  delta_time=$delta_t_string  ' type="s" '  read_time.ncl
+  time_step=$delta_t_string
+else
+  ncl  lev=$level_section_string  delta_time=$delta_t_string  ' type="r" '  read_time.ncl
+  time_step=1
+fi
+
+
+index=1
+
+while IFS=";" read -r  date  depth_val 
+do
+
+    cdo seltimestep,$time_step  $file_cur  file_1.nc
+
+    cdo sellevel,$depth_val  file_1.nc file_2.nc
+    rm file_1.nc
+
+    cdo sellonlatbox,$lon_min,$lon_max,$lat_min,$lat_max  file_2.nc file_3.nc
+    rm file_2.nc
+
+    cdo delname,v_velocity   file_3.nc  file_uo.nc
+    cdo delname,u_velocity   file_3.nc  file_vo.nc
+    rm file_3.nc
+
+
+     gmt makecpt -Crainbow -T0./0.6/0.05 > colors.cpt    # colors.cpt will not be created each time because I modified the background color to white.
+   
+  gmt begin $serial_name"speed_contour"$a"_"$plot_type"_"$index 
+     gmt grdmath    @file_uo.nc 2 POW  @file_vo.nc 2 POW ADD SQRT = speed.nc 
+     gmt grdcontour @speed.nc  -JM6i -B -A+h -S5  -Ncolors.cpt  
+#    gmt coast -R$lon_min/$lon_max/$lat_min/$lat_max  -Bx+lcggc  -Df -JM6i -B+t"Velocity: Depth = 1,2 m, Date: $date "   -Ggray 
+     gmt grdvector  file_uo.nc file_vo.nc   -JM6i -B+t"Velocity: Depth = $depth_val, Date: $date "  -Q0.1c+e+jc -Sl0.3c -Wsolid -Ix100  
+     gmt colorbar -Dx8c/2.5c+w12c/0.5c+jTC+h  -Ccolors.cpt -Baf+l"Water velocity [m/s]"
+     rm speed.nc
+     rm file_uo.nc
+     rm file_vo.nc
+  gmt end                                                                                      
+ 
+((time_step ++))
+((index ++))                                                                            
+
+done < date_time.txt                                          
+
+ ((a++))
+ 
+done  < initialization_file.txt

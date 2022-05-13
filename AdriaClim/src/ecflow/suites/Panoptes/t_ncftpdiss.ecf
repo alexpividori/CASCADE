@@ -1,0 +1,517 @@
+%manual
+%include <man/general.man>                     # General manual for all task in this suite
+%include <man/t_ncftpdiss.man>                 # Specific manual for this task
+%end
+
+%include <head.h>                              # Include header common to all tasks. 
+                                               # It manages general calls to ecflow client
+
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+    echo -e "\n\n\tGENERATION OF SERVICES FOR FENICE STATUS MONITORING\n\n\t\tSet: %PANEYE%\n"
+    echo -e "\n\t\t\tFTP TRANSFER NODE\n"
+    EXIT_STATUS=0   # set default exit status everything OK
+    #
+    # +--------------------------------------------------------------------
+    # | Check whether suite initialization file exists                    |
+    # +--------------------------------------------------------------------
+    #
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE%" not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE%" found.\n"
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |  Load suite initialization file                                 |
+    #  +------------------------------------------------------------------
+    #
+    LOADOK=0
+    . %SUITE_INI_FILE% || LOADOK=1
+    if [[ $LOADOK -eq 0 ]];then 
+       echo -e "\tSuite initialization file successfully loaded\n"
+    else
+       echo -e "\n\tERROR!!!! Suite initialization file load failure!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |  Some verbose before to start the task                          |
+    #  +------------------------------------------------------------------
+    #
+    TMP_WRK_DIR="${GEN_WORK_DIR}/%PANEYE%"
+    echo -e "\n\tThis node is going to look for files using these root directories:"
+    echo -e "\n\tTemporary directory to work into:\n\tTMP_WRK_DIR=${TMP_WRK_DIR}"
+    echo -e "\n\tRoot directory where temporary files and directories are created:\n\tGEN_WORK_DIR=${GEN_WORK_DIR}"
+    echo -e "\n\tRoot directory log files are going to be stored, if needed:\n\tGEN_LOG_DIR=${GEN_LOG_DIR}"
+    echo -e "\n\tRoot directory where script files and job templates are available:\n\tGEN_SRC_DIR=${GEN_SRC_DIR}"
+    echo -e "\n\tRoot directory where initialization files are available:\n\tGEN_ETC_DIR=${GEN_ETC_DIR}"
+    echo -e "\n\tRoot directory where auxiliary data files are available:\n\tGEN_DAT_DIR=${GEN_DAT_DIR}"
+    #
+    # Move in the temporary WORK 
+    #
+    if [[ ! -d $TMP_WRK_DIR ]];then mkdir -p $TMP_WRK_DIR; fi; cd $TMP_WRK_DIR
+    echo -e "\n\tCurrently I am in: $(pwd)\n"
+    #
+    #  +------------------------------------------------------------------
+    #  |  Load specific initialization file for Marine litter service    |
+    #  +------------------------------------------------------------------
+    #
+    BACKUP_INI_FILE="$(echo ${BACKUP_INI_FILE:=NULL} | sed -e s/%%WHOGET%%/%WHOGET:NULL%/g)"
+    SPEC_INI_FILE="$(echo $SPEC_INI_FILE_TPL | sed -e s/%%PANEYE%%/%PANEYE%/g)"
+    if [[ ! -e ${SPEC_INI_FILE:-NULL} ]]; then
+       echo -e "\n\n\tERROR!!!! Parameters file SPEC_INI_FILE=$SPEC_INI_FILE not found!!!\n"
+       echo -e "\tI try with a substitute: ${BACKUP_INI_FILE}" 
+       if [[ ! -e ${BACKUP_INI_FILE:-NULL} ]]; then
+          echo -e "\n\n\tERROR!!!! Parameters file BACKUP_INI_FILE=$BACKUP_INI_FILE not found!!!\n"
+          EXIT_STATUS=1 ; ERROR
+       else
+          echo -en "\n\tParameters file BACKUP_INI_FILE=$BACKUP_INI_FILE found.\n\tLoading file ..."
+          #
+          # Load specific initialization file
+          #
+          LOADOK=0
+          . $BACKUP_INI_FILE || LOADOK=1
+          if [[ $LOADOK -eq 0 ]];then
+             echo -en "... successfully loaded\n"
+          else
+             echo -en " ... FAILURE!!!!\n\tERROR!!!! Exit from this node\n"
+              EXIT_STATUS=1 ; ERROR
+          fi
+       fi
+    else
+       echo -en "\n\tParameters file SPEC_INI_FILE=$SPEC_INI_FILE found.\n\tLoading file ..."
+       #
+       # Load specific initialization file
+       #
+       LOADOK=0
+       . $SPEC_INI_FILE || LOADOK=1
+       if [[ $LOADOK -eq 0 ]];then
+          echo -en "... successfully loaded\n"
+       else
+          echo -en " ... FAILURE!!!!\n\tERROR!!!! Exit from this node\n"
+          EXIT_STATUS=1 ; ERROR
+       fi
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |  Load specific parameters fo FTP transfer                       |
+    #  +------------------------------------------------------------------
+    #
+    #
+    # 
+    #
+    echo -e "\n\n\tLoading ncftp information required for dissemination\n"
+    EXIT_STATUS=0   # set default exit status everything OK
+    #
+    # Some constants here below
+    #
+    FTP_DELAY="1.5"                                # The magnification factor for the FTP transfer timeout
+    FTP_TASK="%PANEYE%"                         # Get User from suite variable (see suite definition file)
+
+    FTP_CLEAN="%FTP_CLEAN%"                        # Set whether to clean the remote area before to transfer (y) or not (n)
+    FTP_COMPL="%FTP_COMPL%"                        # Set whether to upload the complete file in the remote area at transfer end (y) or not (n)
+    FTP_STATUS_FILENAME="ftp_status.txt"           # The default file name storing the status of the FTP procedure
+    THE_DIRECTORY_WHERE_TO_WORK="${TMP_WRK_DIR}"   # Define diretcory where to start the FTP transefer 
+    WHERE_TO_SEND_STDERR=${TMP_WRK_DIR}            # Directory for stdout
+    CHECK_JOB_LOG=${TMP_WRK_DIR}                   # Directory for logs 
+    FTP_PROD_DISS_TEMPLATE="${FTP_FILES_2_GO//%%PANEYE%%/%PANEYE%}"     # List of files to be transferred on the exchange data area
+    #
+    # Set ecFlow label initial value 
+    # 
+    ecflow_client --label=TRANSF "START"
+    #
+    #   Some preliminary information
+    #
+    cat <<EOF
+
+
+        +-------------------------------------------------+
+        |                                                 |
+        |  FENICE dissemination: $(printf "%%-25s" $FTP_TASK)|
+        |                                                 |
+        +-------------------------------------------------+
+
+EOF
+
+    echo -e "\n\tThe file transfer is made by meanss of $FTP_TRANSFER_UTILITY"
+    #
+    #  Test transfer utility availability
+    #
+    if [[ $(command -v $FTP_TRANSFER_UTILITY >/dev/null 2>&1 ; echo=$?) -ne 0 ]]; then 
+        echo -e "\n\t\tERROR!!! utility $FTP_TRANSFER_UTILITY not available!!! Exit!!\n "
+        EXIT_STATUS=1 ; ERROR
+    else
+        echo -e "\tUtility $FTP_TRANSFER_UTILITY is available"
+    fi
+    #
+    #  Set the flags required fo the transer. See user definition file
+    #
+    NRETRY="-r ${FTP_RETRY:=1}"          # ncftpput redial to remote FTP server a maximum of ${FTP_RETRY} times. Default is 1
+                                         # y/n attempt to make the remote directory before copying. Default in no.
+    if [[ "${FTP_CREADIR:=n}" == "y" ]];then CREDIR="-m"; else CREDIR=""; fi
+                                         # y = ASCII transfer mode, n = binary transfer mode
+    if [[ "${FTP_ASCII:=n}" == "y" ]];then     ASCII_TR="-a"; else ASCII_TR=""; fi
+    YNLOGF=${FTP_LOGFILE:=n}             # y/n Save FTP log file in temporary file. Default in no.
+    MAXTIME=${FTP_TIMEOUT:=5}            #  The minimum time out for a file transfer, in seconds. If not available set it to 5 seconds
+    NTW_SPEED=${FTP_NTW_SPEED:=1000}     #  The average expected transfer speed (kB/s). Default is set to 1 MB/s
+
+    echo -e "\n\t------------------------------------------\n" 
+     
+    #
+    # Create directories required for job run
+    #
+    #     First work directory
+    #
+    if [[ -d $THE_DIRECTORY_WHERE_TO_WORK ]];then
+       echo -e "\tDirectory to run the job is available. It is: $THE_DIRECTORY_WHERE_TO_WORK"
+    else
+       mkdir -p $THE_DIRECTORY_WHERE_TO_WORK
+       if [[ $? -ne 0 ]];then 
+          echo -e "\n\t!!ERROR in creating the job work directory: $THE_DIRECTORY_WHERE_TO_WORK\n"
+          EXIT_STATUS=1 ; ERROR
+       else
+          echo -e "\tSuccessfully created the job work directory: $THE_DIRECTORY_WHERE_TO_WORK"
+       fi
+    fi 
+    cd  $THE_DIRECTORY_WHERE_TO_WORK
+    if [[ $? -ne 0 ]];then 
+       echo -e "\n\tERROR I cannot access work directory! ($THE_DIRECTORY_WHERE_TO_WORK)\n"
+       EXIT_STATUS=1 ; ERROR 
+    else
+       echo -e "\tCurrently I am in directory: $(pwd)"
+    fi
+    #
+    #     Second log directory
+    #
+    if [[ -d $CHECK_JOB_LOG ]];then
+       echo -e "\tDirectory to log the job is available. It is: $CHECK_JOB_LOG"
+    else
+       mkdir -p $CHECK_JOB_LOG
+       if [[ $? -ne 0 ]];then 
+          echo -e "\n\t!!ERROR in creating the job log directory: $CHECK_JOB_LOG\n"
+          EXIT_STATUS=1 ; ERROR
+       else
+          echo -e "\tSuccessfully created the job log directory: $CHECK_JOB_LOG"
+       fi
+    fi 
+    #
+    # Create the name of the ncftpput log file 
+    #
+    NCFTP_LOG_FILE="$(mktemp -u log.XXXX)"
+    NCFTP_LOG_FILE="${CHECK_JOB_LOG}/${FTP_TASK}_ncftpput.${NCFTP_LOG_FILE}.$(date -u +%%Y%%m%%d_%%H%%M%%S)"
+    echo -e "\tNCFTPPUT log file is: $NCFTP_LOG_FILE\n"
+
+    echo -e "\tClean the remote area before to transfer (y) or not (n) ---> $FTP_CLEAN"
+    echo -e "\tForce the transfer of already transferred files? (TRUE means yes)) ---> ${FTP_FORCE_TRANSF:=NULL}"
+    echo -e "\tUpload the complete file in the remote area at transfer end (y) or not (n) --->  $FTP_COMPL"
+    echo -e "\tThe file name storing the status of the FTP procedure ---> $FTP_STATUS_FILENAME"
+    #
+    # Create the options string for the ncftpput 
+    #
+    NCFTPPUT_OPTIONS="${NRETRY}  ${CREDIR} -d ${NCFTP_LOG_FILE} -S .tmp  ${ASCII_TR} "
+    echo -e "\n\tncftp options are: ${NCFTPPUT_OPTIONS}\n"
+#
+#
+# ------------------------------------------------------------------------------------------
+# List all the files available in the archive directory and then transfer those not stransferred so far
+# ------------------------------------------------------------------------------------------
+    #
+    # The list file storing all the files already successfully transferred is generated according the
+    # user identification string 
+    #
+    TRANS_LIST_FILE="${CHECK_JOB_LOG}/${FTP_TASK}_transferred.list"
+    if [[ "${FTP_FORCE_TRANSF:=NULL}" == "TRUE"  ]];then 
+       echo -e "\n\tYou requested to force the FTP transfer of all file, the already trsferred too!"
+       echo -e "\tSee variable FORCE_TRANF set to TRUE in the  specific initializazion file\n"
+       if [[ -e ${TRANS_LIST_FILE} ]];then rm $TRANS_LIST_FILE; fi  
+    fi
+    # Create a void list file if it is not available 
+    if [[ ! -e $TRANS_LIST_FILE ]]; then touch $TRANS_LIST_FILE; fi
+      
+    echo -e "\tThe log list file of already transferred file is: $TRANS_LIST_FILE\n"
+    echo -e "\tLooking for files to transfer: \n"
+    echo -e  "\t---------\n\tSTEP 1\n\tFile checking"  
+    #
+    #   LOOP OVER RETRIALS
+    #
+    FTP_TRANSFER_FAILURES=""   
+    NRET=0    # Initialize the numbet of transfer attempts    
+    RET=1     # Set retry flag to 1 that is try to transfer 
+    while [[ $RET -ne 0 ]];do
+        RET=0     # Set retry flag to 0 that is stop this loopr 
+        NRET=$(($NRET + 1))
+        #
+        # ecFlow label: Number of trials
+        #
+        ecflow_client --label=TRANSF "TRIAL $NRET"
+
+        echo -e "\n\n\t\t+-----------------------------------+"
+        echo -e "\t\t| This is the transfer attempt: $(printf "%%3d" $NRET) |"
+        echo -e "\t\t+-----------------------------------+\n\n"
+        #
+        #   Look for files to be transferred and create the transfer list
+        #
+        LIST_OF_FILES="./${FTP_TASK}_file-list_$(mktemp -u ncftpput.XXXXX).lst"
+        NF=0; NTOTR=0
+        for F_ARCH in $(ls  ${FTP_PROD_DISS_TEMPLATE});do
+            NF=$(($NF + 1))
+            echo -en "\tFound file: ${F_ARCH##*/} ..."
+            if [[  $(grep -sq "${F_ARCH##*/}" $TRANS_LIST_FILE ; echo $?)  -eq 0 ]];then
+                echo -en "... Already transferred\n"
+            else
+                # Get file size
+                FILE_SIZE_KB=$(stat -c %%s $F_ARCH); FILE_SIZE_KB=$((FILE_SIZE_KB/1000)) 
+                # Compute minimum time transfer according to file size and average network speed
+                MAXTIME_FOR_FILE=$(echo -e "scale=2; ${FILE_SIZE_KB}/${NTW_SPEED}" | bc -l) 
+                echo $F_ARCH >> $LIST_OF_FILES
+                echo -en "... TO BE TRANSFERRED. Expected time transfer $MAXTIME_FOR_FILE s at ${NTW_SPEED} kB/s\n"
+                MAXTIME_FOR_FILE=$(echo -e "scale=2; (${MAXTIME_FOR_FILE} + 1)*${FTP_DELAY}" | bc -l)
+                MAXTIME_FOR_FILE=$((${MAXTIME_FOR_FILE%%%%.*} + 1))
+                if [[ $MAXTIME_FOR_FILE -gt $MAXTIME ]]; then MAXTIME=$MAXTIME_FOR_FILE ; fi
+                NTOTR=$(($NTOTR +1))
+            fi
+        done
+        if [[ $NRET -eq 1 ]]; then TOT_N_FILES=$NF; fi
+        echo -e "\n\tTotal number of files in the archive directory are: $(printf "%%10d" $NF)"
+        echo -e "\tFiles to be transferred from archive directory are: $(printf "%%10d" $NTOTR)"
+        echo -e "\tThe timeout for FTP transfer is set to: $MAXTIME s. (Original from initialization file is: $FTP_TIMEOUT s.)"
+         
+        if [[ $NTOTR -gt 0 ]];then   # TRANSFER IF AND ONLY IF THERE ARE FILES STILL TO BE TRANSFERRED 
+            #    
+            # Start the transfer for the files in the list of transfer   
+            # Check the connection with the remote area 
+            #    
+            echo -e  "\n\t---------\n\tSTEP 2\n\tRemote area checking"  
+            echo -en "\n\tChecking the FTP transfer channel before to stast: $(date -u +%%F' '%%T) ..."    
+            # Generate FTP commands file to test remote area existence
+            FTP_COMMAND_TMP=$(mktemp ./ftp-commands.XXXXXXXX)                             # Generate temporary FTP command file name
+            echo -e "#!/bin/bash" > $FTP_COMMAND_TMP                                      # Invoke BASH
+                                                                                          # Start FTP protocol save standard output 
+                                                                                          # and access with user and passwd
+            echo -e "ncftp -u $FTP_USERNAME -p $FTP_PASSWORD $FTP_SERVER_NAME <<EOF > ${NCFTP_LOG_FILE} ">> $FTP_COMMAND_TMP
+            echo -e "set auto-resume yes"  >> $FTP_COMMAND_TMP                            # Set autoserume in case of failure 
+            echo -e "set control-timeout $FTP_TIMEOUT"  >> $FTP_COMMAND_TMP                  # Set control time out
+            echo -e "debug 1 "  >> $FTP_COMMAND_TMP                                       # Move in the server area selected for file transfer
+            echo -e "cd $FTP_REMOTE_AREA"  >> $FTP_COMMAND_TMP                            # Move in the server area selected for file transfer
+            echo -e "quit" >> $FTP_COMMAND_TMP                                            # Close FTP connection
+            echo -e "EOF" >> $FTP_COMMAND_TMP                                             # Close FTP connection
+            TMP_TIME_S0=$(date -u +%%s)
+            source $FTP_COMMAND_TMP    > /dev/null 2>&1                                   # Execute FTP commands
+            TMP_TIME_S0=$(($(date -u +%%s) - $TMP_TIME_S0))
+            echo -en "... completed in $TMP_TIME_S0 seconds\n"    
+            if [ -e $FTP_COMMAND_TMP ];then rm $FTP_COMMAND_TMP ;fi                       # Remove temporary FTP command file
+        
+            # Read log file and verify remote area existence
+            FTP_COMPLETED=0                                                               # Set completed FTP transfer to 1 = At least one file was not
+            while read TRF_LINE; do                                                       # Loop over log file lines
+                 W_HEAD=$(echo $TRF_LINE | cut -d ":" -f 1)                               # Get first word of line
+                 #  Check whether any failure occurred in changing directory 
+                 if [[ "$W_HEAD" == "550" ]]; then                                        # Select lines starting with file info
+                    echo -e "\n\t\tWARNING!!!  An error occured in Accessing remote area $FTP_REMOTE_AREA."
+                    echo -e "\t\tThe failure message is ---> $TRF_LINE"
+                    FTP_COMPLETED=1                                                       # Set completed FTP transfer to 1 = At least one file was not
+                 fi 
+            done < ${NCFTP_LOG_FILE}
+            if [ -e ${NCFTP_LOG_FILE} ];then rm ${NCFTP_LOG_FILE} ;fi                     # Remove temporary FTP command log file
+        
+            
+            if [[ $FTP_COMPLETED -ne 0 ]];then 
+               echo -en "\n\tThe Remote area was NOT found ..."
+               if [[ "$FTP_CREADIR" == "y" ]];then 
+                  echo -en " I will attempt to create it during FTP transfer, because you set FTP_CREADIR=$FTP_CREADIR\n"
+               else
+                  echo -en " Ipossible to continue FTP transfer, because you set FTP_CREADIR=$FTP_CREADIR I EXIT!!!.\n"
+                  EXIT_STATUS=1 ; ERROR
+               fi
+            else
+               echo -e "\tThe Remote area was found. It is: $FTP_REMOTE_AREA"
+            fi
+            #
+            # Clean the remote area if requested   
+            #
+            if [[ $FTP_CLEAN == "y" &&  $NRET -eq 1 ]];then
+               echo -en "\n\tStart cleaning the remote area ... " 
+               NANF=0; NOTOK=1
+               while [[ $NOTOK -eq 1 ]]; do
+                    NANF=$(($NANF + 1))
+                    touch  ${NCFTP_LOG_FILE}.list
+                    EXE_COMMAND="ncftpls -1 -u $FTP_USERNAME -p $FTP_PASSWORD -t 1  ftp://${FTP_SERVER_NAME}/${FTP_REMOTE_AREA} > ${NCFTP_LOG_FILE}.list"
+                    if [[ $(eval $EXE_COMMAND > /dev/null 2>&1; echo $?) -eq 0  ]];then 
+                        NOTOK=0; 
+                        echo -en "... Looking for files to be removed.\n" 
+                    else
+                        if [[ $NANF -gt $FTP_TRANSFER_RETRY_N ]];then NOTOK=0; fi
+                    fi      
+               done 
+               if [[ $NANF -gt $FTP_TRANSFER_RETRY_N ]];then
+                   echo -en "... WARNING impossible to list files in the remote area after $NANF appemts!! .\n\n" 
+               fi
+               if [[ -e  ${NCFTP_LOG_FILE}.list ]];then 
+                  NF_TO_RM=$(cat  ${NCFTP_LOG_FILE}.list | wc -l)
+                  echo -e "\tFile to remove in the remote area are: $NF_TO_RM"
+                  if [[ $NF_TO_RM -gt 0 ]];then
+                     # Generate FTP commands file to test remote area existence
+                     FTP_COMMAND_TMP=$(mktemp ./ftp-commands.XXXXXXXX)                             # Generate temporary FTP command file name
+                     echo -e "#!/bin/bash" > $FTP_COMMAND_TMP                                      # Invoke BASH
+                                                                                                   # Start FTP protocol save standard output 
+                                                                                                   # and access with user and passwd
+                     echo -e "ncftp -u $FTP_USERNAME -p $FTP_PASSWORD $FTP_SERVER_NAME <<EOF > ${NCFTP_LOG_FILE} ">> $FTP_COMMAND_TMP
+                     echo -e "set auto-resume yes"  >> $FTP_COMMAND_TMP                            # Set autoserume in case of failure 
+                     echo -e "set control-timeout $FTP_TIMEOUT"  >> $FTP_COMMAND_TMP                  # Set control time out
+                     echo -e "debug 1 "  >> $FTP_COMMAND_TMP                                       # Move in the server area selected for file transfer
+                     echo -e "cd $FTP_REMOTE_AREA"  >> $FTP_COMMAND_TMP                            # Move in the server area selected for file transfer
+                     echo -e "rm *.*"  >> $FTP_COMMAND_TMP                                         # Remove files in the area 
+                     echo -e "quit" >> $FTP_COMMAND_TMP                                            # Close FTP connection
+                     echo -e "EOF" >> $FTP_COMMAND_TMP                                             # Close FTP connection
+                     TMP_TIME_S0=$(date -u +%%s)
+                     source $FTP_COMMAND_TMP    > /dev/null 2>&1                                   # Execute FTP commands
+                     TMP_TIME_S0=$(($(date -u +%%s) - $TMP_TIME_S0))
+                     echo -e "\tRemove completed in $TMP_TIME_S0 seconds\n"    
+                     if [ -e $FTP_COMMAND_TMP ];then rm $FTP_COMMAND_TMP ;fi                       # Remove temporary FTP command file
+                  fi
+               fi
+            fi
+            #
+            # Upload the in progress transfer file 
+            #
+            if [[ $FTP_COMPL == "y" || $FTP_CLEAN == "y"  ]];then
+               echo -e "File trasfer in progress at: $(date -u +%%F' '%%T' UTC')" > $FTP_STATUS_FILENAME
+               echo -en "\n\tStart upload of notification file  ... " 
+               NANF=0; NOTOK=1
+               while [[ $NOTOK -eq 1 ]]; do
+                    NANF=$(($NANF + 1))
+                    EXE_COMMAND="$FTP_TRANSFER_UTILITY -u $FTP_USERNAME -p $FTP_PASSWORD ${NCFTPPUT_OPTIONS} \
+                                 -t ${MAXTIME} $FTP_SERVER_NAME $FTP_REMOTE_AREA $FTP_STATUS_FILENAME"
+                    if [[ $($EXE_COMMAND > /dev/null 2>&1; echo $?) -eq 0 ]];then 
+                        NOTOK=0; rm $NCFTP_LOG_FILE
+                        echo -en "... upload completed. Bye.\n\n" 
+                    else
+                        rm $NCFTP_LOG_FILE
+                        if [[ $NANF -gt $FTP_TRANSFER_RETRY_N ]];then NOTOK=0; fi
+                    fi      
+               done 
+               if [[ $NANF -gt $FTP_TRANSFER_RETRY_N ]];then
+                   echo -en "... WARNING impossible to upload file after $NANF appemts!! Bye.\n\n" 
+               fi
+               if [[ -e $FTP_STATUS_FILENAME ]];then rm $FTP_STATUS_FILENAME ; fi
+            fi
+            #
+            #        Generate FTP commands file to transfer log file
+            #        Write the list of files to be transferred
+            #
+            #     This is the one file at time transfer mode
+            #
+            echo -e  "\n\t---------\n\tSTEP 3\n\tFile transfer."  
+            if [[ ${FTP_TRANSFER_MODE:=0} -eq 0 ]]; then
+               echo -e "\tSelected the NCFTPPUT transfer mode: ${FTP_TRANSFER_MODE:=0} -->  one ncftpput call for each file"
+    
+               TIME_START=$(date -u +%%F" "%%T)                                              # Get start date and time UTC
+               TOT_SEC_START=$(date -u +%%s)                                                 # Get start time
+               echo -e "\n\t\tBegin transfer at: $TIME_START UTC"
+      
+               FTP_COMPLETED=0                                                               # Set completed FTP transfer to 1 = At least one file was not
+               NF=0
+               while read FL; do
+                 EXE_COMMAND="$FTP_TRANSFER_UTILITY -u $FTP_USERNAME -p $FTP_PASSWORD ${NCFTPPUT_OPTIONS} -t ${MAXTIME} $FTP_SERVER_NAME $FTP_REMOTE_AREA ${FL}"
+                 if [[ $($EXE_COMMAND > /dev/null 2>&1; echo $?) -eq 0 ]];then 
+                     NF=$(($NF + 1))
+                     echo -e "\tFile ${FL##*/} successfully transferred"
+                     echo  ${FL##*/} >> $TRANS_LIST_FILE                                   # Add files transferred successfully to the file list
+                     rm $NCFTP_LOG_FILE
+                 else
+                     FTP_COMPLETED=1                                                       # Set completed FTP transfer to 1 = At least one file was not
+                     echo -e "\tFile ${FL##*/} NOT transferred!!!"
+                     rm $NCFTP_LOG_FILE
+                 fi      
+               done < $LIST_OF_FILES
+               TOT_SEC_STOP=$(date -u +%%s)                                                    # Get stop  time
+               TIME_STOP=$(date -u +%%F" "%%T)                                                 # Get stop date and time UTC
+               echo -e "\t\tEnd   transfer at: $TIME_STOP UTC"
+               echo -e "\tTotal transfer elapsed time: $(($TOT_SEC_STOP - $TOT_SEC_START)) s"  # Write the total elapsed transfer time  
+               echo -e "\tFiles transferred successfully: $NF (expected: $NTOTR)"              # Write the number of transferred files  
+               FTP_TRANSFER_FAILURES="${FTP_TRANSFER_FAILURES} $(($NTOTR - $NF))"              # Compute the number of failures
+            fi 
+            #
+            # Check whether all expected trasfer were successful otherwise try again
+            # Write a message if there were problems while transferring all files and set return status
+            #
+            if [[ $FTP_COMPLETED -ne 0 ]];then                                               # At least one file was not completely
+                 echo -e "\n\tWARNING!!! Problems in transferring at least one file!!!"      # transferred. Return status for this 
+                 if [[ ${FTP_TRANSFER_MODE:=0} -eq 0 ]]; then echo -e "\tSee log file: $NCFTP_LOG_FILE\n";fi
+                 RET=1                                                                       # The retry flag is set to 1 = retry transfer on failed files 
+                 if [[ $NRET -ge $FTP_TRANSFER_RETRY_N ]]; then RET=0; fi                    # Do not retry if the maximum number of retrials is reached
+            else
+                 if [[ $NTOTR -ne 0 ]];then                                                   # Write a message when everything was successful
+                    echo -e "\n\tAll files were transferred successfully."
+                    #
+                    # upload the completed transfer file 
+                    #
+                    if [[ $FTP_COMPL == "y" ]];then
+                       echo -e "File trasfer completed at: $(date -u +%%F' '%%T' UTC')" > $FTP_STATUS_FILENAME
+                       echo -e "\n\tNotification file: $FTP_STATUS_FILENAME created whith content"
+                       echo -e "\t\tFile trasfer completed at: $(date -u +%%F' '%%T' UTC')"
+                       echo -en "\n\tStart upload of notification file  ... " 
+                       NANF=0; NOTOK=1
+                       while [[ $NOTOK -eq 1 ]]; do
+                            NANF=$(($NANF + 1))
+                            EXE_COMMAND="$FTP_TRANSFER_UTILITY -u $FTP_USERNAME -p $FTP_PASSWORD ${NCFTPPUT_OPTIONS} \
+                                         -t ${MAXTIME} $FTP_SERVER_NAME $FTP_REMOTE_AREA $FTP_STATUS_FILENAME"
+                            if [[ $($EXE_COMMAND > /dev/null 2>&1; echo $?) -eq 0 ]];then 
+                                NOTOK=0; rm $NCFTP_LOG_FILE
+                                echo -en "... upload completed. Bye.\n\n" 
+                            else
+                                rm $NCFTP_LOG_FILE
+                                if [[ $NANF -gt $FTP_TRANSFER_RETRY_N ]];then NOTOK=0; fi
+                            fi      
+                       done 
+                       if [[ $NANF -gt $FTP_TRANSFER_RETRY_N ]];then
+                           echo -en "... WARNING impossible to upload file after $NANF appemts!! Bye.\n\n" 
+                       fi
+                       if [[ -e $FTP_STATUS_FILENAME ]];then rm $FTP_STATUS_FILENAME ; fi
+                    fi
+                 fi
+            fi
+            #
+            #   Remove files not needed any more           
+            #
+            if [[ ${FTP_TRANSFER_MODE:=0} -ne 0 ]]; then
+               if [[ "${YNLOGF}" == "n" ]];then
+                   echo -en "\n\tI remove NCFTPPUT log file ..."
+                   if [[ -e $NCFTP_LOG_FILE ]];then rm $NCFTP_LOG_FILE; echo -en "... Removed"; fi
+               else
+                   echo -e "\n\tI do not remove NCFTPPUT log file: $NCFTP_LOG_FILE"
+               fi
+            fi
+        else
+            #
+            # Thewre are no messages to leave concerning the transfer                   
+            #
+            echo -e "\tThere are no files to be transferred. Bye."
+        fi
+        #
+        # End of the retrials loop
+        #
+    done
+    #
+    # Some statistics on retires 
+    #
+    echo -e "\n\tFTP_TRANSFER STATIS CAP=Time UTC           Retrials Max Retrials   file number List of failed file trasnsfer"
+    echo -e "\tFTP_TRANSFER STATIS RES=$(date -u +%%F' '%%T) $(printf "%%7d %%11d %%13d" $NRET $FTP_TRANSFER_RETRY_N  $TOT_N_FILES)    ${FTP_TRANSFER_FAILURES}\n"
+
+
+    if [[ -e $LIST_OF_FILES ]];then rm $LIST_OF_FILES; fi
+    #
+    #   Some information on stdout and label       
+    #
+    ecflow_client --label=TRANSF "STOP - TRIALS $NRET"
+    echo -e "\n\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE ABOVE
+#-----------------------------------------------------------------------------
+
+%include <tail.h>                   # Include tail common to all tasks. 
+                                    # It manages general calls to ecflow client

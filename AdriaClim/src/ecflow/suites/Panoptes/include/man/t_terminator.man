@@ -1,0 +1,36 @@
+
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    Dec 09, 2019
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   To remove old rtemporary prducts from /lustre/arpa/operative/scratch  
+   area. 
+
+   This is temporary and raw node to be replaced with a more skilled one
+    
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   Remove it from the suite
+ 
+   EXTENDED TASK DESCRIPTION
+   It reads the directories whete to start the removal and removes the 
+   daily subdirectories keeping the removal mass below a threshold 
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it
+

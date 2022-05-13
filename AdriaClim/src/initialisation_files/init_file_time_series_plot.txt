@@ -1,0 +1,4 @@
+/lustre/arpa/minighera/shyfem/test_001/working_ext/test_001-salt.2d.9	Salinity (vertically averaged)	Lignano (13.142832 E, 45.698196 N)
+/lustre/arpa/minighera/shyfem/test_001/working_ext/test_001-temp.2d.9	Sea Temperature (vertically averaged) [°C]	Lignano (13.142832 E, 45.698196 N)
+/lustre/arpa/minighera/shyfem/test_002/working_ext/test_002-salt.2d.9	Salinity (vertically averaged)	Lignano (13.142832 E, 45.698196 N)
+/lustre/arpa/minighera/shyfem/test_002/working_ext/test_002-temp.2d.9	Sea Temperature (vertically averaged) [°C]	Lignano (13.142832 E, 45.698196 N)

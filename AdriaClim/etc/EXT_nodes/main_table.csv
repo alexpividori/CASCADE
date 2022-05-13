@@ -1,0 +1,17 @@
+# *********************************
+# * EXT NODES ID: GENERAL MEANING *
+# *********************************
+# The table below defines the general meaning of characters in the alphanumeric
+# identification code, of the EXT nodes to be considered in the frame of
+# AdriaClim INTERREG IT-HR project's simulations, by ARPA FVG (PP11).
+# Ecah row of the table (except from the first, namely the header) is linked to
+# another table, which is contained in the indicated file ("Linked file") and
+# describes the specific meaning of the given single or groups of characters
+# ("Characters").
+# To know how to use this table, read the README file belonging to this
+# directory.
+# ***********************************
+Characters;Synthetic description;Linked file
+1;general location of the EXT node;./char_01_table.csv
+2;relevance of the location of the EXT node;./char_02_table.csv
+3-4-5;progressive number of the EXT node, with respect to the class defined by character 1;./char_03-04-05_table.csv

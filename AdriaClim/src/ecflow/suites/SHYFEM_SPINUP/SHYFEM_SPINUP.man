@@ -1,0 +1,1 @@
+include/man/SHYFEM_SPINUP.man

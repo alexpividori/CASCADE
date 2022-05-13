@@ -1,0 +1,178 @@
+%manual
+%include <man/wget_data_Med_CORDEX.man>
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <etc/general_Med_CORDEX_plots.ini>
+
+##############################################################################
+# Arpa FVG - Dowload data script
+#
+# Author: Simone Martini
+# Name of File: wget-data-Med-CORDEX.sh
+#
+# Ver.1.0 - 20/01/21
+# Dowload ALL files from Med-CORDEX
+#
+# Ver.1.1 - 20/01/21
+# Add refernece path for file  
+#
+##############################################################################
+
+increment_date (){
+
+t1="$1"                          # the format is YYYYMM
+local t1_y=${t1:0:4}
+local t1_m=${t1:4:2}
+
+t1="$(( t1_y + 1 ))${t1_m}"
+
+       # if [[ "$t1_m" == "12"  ]]; then   t1="$(( t1_y + 1 ))01" ; else t1="${t1_y}$( printf  "%02d"  $(( t1_m + 1 )) )" ; fi
+       # if [[ "$t1_m" == "12"  ]]; then   t1="$(( t1_y + 1 ))12" ; else t1="${t1_y}$( printf  "%02d"  $(( t1_m + 1 )) )" ; fi
+}
+
+#=================================================================================
+
+#CONNECT TO THE Med-CORDEX data WITH PERSONAL USER
+#NOTE: Only authorized users can get Med-CORDEX data.
+#f = ftp://user:passw@www.medcordex.eu  
+
+#====================   CREDENTIALS  ====================
+
+usr=mdcx547 #This is the FTP user that has access to the server.
+passw=7u-SwH3 #This is the password for the FTP user.
+host=www.medcordex.eu #This is the FTP servers host or IP address
+
+#=========================================================
+
+#DEFINE THE NAME OF THE INTERESTED FILE
+#Name of the data files are made of the following tokens:
+#VariableName_Domain_GCMModelName_CMIP5ExperimentName_CMIP5EnsembleMember_
+#RCMModelName_RCMVersionID_Frequency[_StartTime-EndTime].nc
+#where the square brackets indicates a token which can also be missing, depending on the values of the other tokens
+
+cd $tmp_dir_root || ERROR
+
+echo "Passage to $tmp_dir_root happened with success"
+
+#===============================================================================
+#                                 DOWNLOAD CYCLE
+#===============================================================================
+
+READ_MODALITY="manual" && echo "The download modality is $READ_MODALITY"
+
+#===========================================================
+
+if [[ "$READ_MODALITY" == "manual" ]]; then 
+
+
+   while read -r file_name
+   do
+
+        DWN_FILE=0
+
+        IFS='_' read -ra name_parts <<< "$file_name"
+       
+        VariableName=${name_parts[0]} 
+        GCMModelName=${name_parts[2]} 
+        CMIP5ExperimentName=${name_parts[3]}  
+
+        if [[ ! -d $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName} ]]; then
+             mkdir -p $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName}   || \
+             { echo "The directory $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName} can't be created"; ERROR ; }
+             echo "Directory $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName} has been created"
+             cd $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName}
+        else
+             cd $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName}
+        fi
+
+        #*************************************************************
+
+        wget --ftp-user=$usr --ftp-password=$passw ftp://$host/ALL/$file_name &>/dev/null || DWN_FILE=1
+
+        if [[ $DWN_FILE -eq 0 ]]; then
+        echo -e "\tThe file $file_name has been downloaded"
+        else
+        echo -e "\tThe file $file_name hasn't been downloaded"
+        fi
+
+   done < $tmp_dir_root/manual_files_list_download.txt
+
+#====================== Automatic modality ============================
+else
+
+while IFS=";" read VariableName Domain GCMModelName CMIP5ExperimentName CMIP5EnsembleMember RCMModelName RCMVersionID Frequency StartTime EndTime 
+do
+
+	if [[ ! -d $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName} ]]; then
+	     mkdir -p $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName}   || \
+             { echo "The directory $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName} can't be created"; ERROR ; }
+             echo "Directory $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName} has been created"
+             cd $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName}
+	else
+	     cd $tmp_dir_root/${GCMModelName}_${CMIP5ExperimentName}_${VariableName}
+	fi
+
+t_in=$StartTime
+t_fin="${t_in:0:4}12"
+
+while [[ ! "$t_fin" > "$EndTime" ]]; do
+
+   DWN_FILE=0
+
+echo "t_in is $t_in, and t_fin is:$t_fin"
+
+file_name="${VariableName}_${Domain}_${GCMModelName}_${CMIP5ExperimentName}_${CMIP5EnsembleMember}_${RCMModelName}_\
+${RCMVersionID}_${Frequency}_${t_in}-${t_fin}.nc"
+
+echo -e "\tThe file name is:\"$file_name\""
+
+#CHECK IF THE FILE IS ALREADY DOWNLOADED
+if [ -f $file_name ]; then
+   echo -e "WARNINGS: The file $file_name is already dowloaded!";
+   increment_date  $t_in  &&   t_in=$t1
+   increment_date  $t_fin &&   t_fin=$t1
+   continue               
+fi
+                                                      
+#DEFINE THE FOLDER WHERE DOWLOAD THE SPECIFIC FILE
+                                  
+#Files are placed into a directory structure named MEDCORDEXPATH having the following scheme:
+                                                
+#MEDCORDEXPATH=$Domain/$Institution/$GCMModelName/$CMIP5ExperimentName/$CMIP5EnsembleMember/$RCMModelName/$RCMVersionID/$Frequency/$VariableName
+                                                                  
+#The ALL directory is a flat directory with links to all the netcdf files present in the whole MEDCORDEXPATH.
+
+MEDCORDEXPATH=ALL 
+                                                 
+wget --ftp-user=$usr --ftp-password=$passw ftp://$host/$MEDCORDEXPATH/$file_name &>/dev/null || DWN_FILE=1
+             
+	if [[ $DWN_FILE -eq 0 ]]; then                                                        
+	echo -e "\t The file \"$file_name\" has been downloaded"
+	else
+	echo -e "\t WARNING:The file \"$file_name\" hasn't been downloaded"
+	fi
+                  
+#============================================
+#               Change Dates
+#============================================
+
+increment_date  $t_in  && t_in=$t1
+increment_date  $t_fin && t_fin=$t1
+
+done
+done < $init_dir/initialization_file_download.txt
+
+fi
+#END OF FILE
+########################################################################## 
+
+echo "The task is now COMPLETED"
+
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+
+

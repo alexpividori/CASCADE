@@ -1,0 +1,73 @@
+            body {
+                font-family: sans-serif;
+                color: black;
+                /* background-image: url("./logos/calm-sea-background.jpg"); */
+                background-color: #f0f8ff;
+            }
+
+            .titleDiv {
+                color: #6495ed;
+                background-color: rgba(0, 99, 73, 0.1); /* #fff8dc */;
+                text-align: center;
+                font-family: "Times New Roman", Times, serif;
+            }
+
+            .myClass  {
+                color: black;
+                border-collapse: collapse;
+                text-align: center;
+            }
+
+            .footDiv {
+                margin-top: 2.67em;
+                display: block;
+                text-align: center;
+                font-size: 0.7rem;
+                flex-shrink: 0;
+            }
+ 
+            table, th {
+                border: 1px solid black;
+                border-collapse: collapse;
+                text-align: center;
+            }
+
+            td {
+                border: 1px solid black;
+                border-collapse: collapse;
+                text-align: right;
+            }
+
+            th, td {
+                padding: 10px;
+                border-collapse: collapse;
+            }
+
+            a:link {
+                color: #708090;
+                background-color: transparent;
+                text-decoration: none;
+            }
+
+            a:visited {
+                color: #796878;
+                background-color: transparent;
+                text-decoration: none;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+
+
+            a:active {
+                color: red;
+                background-color: transparent;
+                text-decoration: underline;
+            }
+
+            p.first_cell {
+                text-align: center;
+                margin-bottom: 0em;
+                color: #ff5050;
+            } 

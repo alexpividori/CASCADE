@@ -1,0 +1,196 @@
+# ******************************************************************************
+#                                   MANUAL
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:      this is the manual for the "SHYFEM_RUN" suite.
+#                    It contains the following type of information:
+#                     - GOAL OF THE SUITE;
+#                     - DESCRIPTION OF THE SUITE;
+#                     - GUIDE FOR USERS;
+#                     - WHAT TO DO IN CASE OF FAILURES;
+#                     - GLOSSARY.
+#
+#  DEVELOPER:        Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:    2022-01-17.
+#
+#  MODIFICATIONS:    none.
+#
+#  VERSION:          0.1.
+#
+# ******************************************************************************
+
+GOAL OF THE SUITE
+Prepare, run and store a specific SHYFEM model's simulation, monitoring its
+evolution.
+
+DESCRIPTION OF THE SUITE
+The suite is composed by a main family ("SIM_1"), which is dedicated to a
+specific simulation. This family can be easily duplicated as many times as you
+want (e.g. "SIM_2", "SIM_3", etc.), in order to simultaneously run multiple
+different simulations.
+The main family is composed by the following subfamilies, the description of
+which explains the aim of the suite itself:
+
+ 1) "sentinel" -> this is the family for checking if there is consistency in
+                  the identification code of the simulation to be run
+                  ("t_check_sim_id_consist" task) and if this identification
+                  code was already attributed to another simulation before
+                  ("t_check_sim_id" task);
+ 2) "mkdirs"   -> this is the family for creating the "scratch" directory and
+                  related subdirectories, dedicated to the simulation to be run
+                  ("t_mkdirs" task). The tree of the main directory is the
+                  following:
+                   .
+                   └── input
+                       ├── adri
+                       ├── meteo
+                       └── rivers
+ 3) "mkinputs" -> this is the family for linking all the input files (settings,
+                  grid/basin, data) needed by SHYFEM to run the simulation, to
+                  the desired directories ("t_mklinks" task), and for creating
+                  the STR file, starting from its related template
+                  ("t_mkSTRfile" task);
+ 4) "run"      -> this is the family for running SHYFEM ("t_run_shyfem" task),
+                  marking its start ("t_run_status_0" task) and end
+                  ("t_run_status_1" task);
+ 5) "spy"      -> this is the family for monitoring the evolution of the
+                  simulation, by considering INF ("INF" family) and EXT ("EXT"
+                  family) files, and by publishing monitoring results on a
+                  dedicated web page ("html" family). Specifically, at almost
+                  regular time intervals, the last lines of the INF file are
+                  printed ("t_tail_INF_file" task). Moreover, the time series
+                  of minimum and maximum temperature and salinity of the whole
+                  basin are plotted, from the start of the simulation onwards
+                  ("t_INF_TS_min_max_plot" task). Furthermore, for some EXT
+                  nodes, the time series of vertically averaged temperature and
+                  salinity, and water level, are plotted, from the start of the
+                  simulation onwards ("t_EXT_split_and_plot" task). All these
+                  products appear on a dedicated web page (*) while the
+                  simulation is running ("t_mkhtml_sim" task), and disappear as
+                  soon as the simulation completes ("t_rmhtml_sim" task).
+ 6) "clean"    -> this is the family for deleting all the files and directories
+                  not to be stored ("t_clean" task);
+ 7) "archive"  -> this is the family for storing all the desired information
+                  (files and directories) related to the spy ("t_archive_spy"
+                  task) and simulation ("t_archive_sim" task).
+
+ (*) http://interreg.c3hpc.exact-lab.it/AdriaClim/shyfem/spy/spy_table.html
+
+GUIDE FOR USERS
+In order to be able to properly use this suite, follow the steps listed below:
+
+ 1) check the ENVIRONMENTAL VARIABLES in the DEFINITION SECTION of the suite's
+    definition file ("%SUITE%.def") and edit them according to your environment
+    or convenience;
+ 2) check the "SIM" variable in the FAMILY SECTION of the suite's definition
+    file ("%SUITE%.def") and edit it according to the identification code of
+    the simulation you want to run;
+ 3) prepare the initialisation file peculiar to the simulation you want to run,
+    to be named as the identification code of this simulation, plus the ".ini"
+    extension (e.g. if "SIM" was set to "1995F500A1_A001", the related
+    initialisation file has to be named as "1995F500A1_A001.ini"): just copy
+    one of these types of files, which should be already present in the
+    "include/etc" subdirectory of the suite, and edit it according to your
+    environment, convenience and features of the simulation you want to run,
+    without changing the name of the variables. Please note that for each new
+    simulation you want to run, there are the following sections of the
+    initialisation file that must be edited (variables assignment):
+     - SIMULATION'S ID ->    define the "SHY_SIM_ID" variable as the
+                             identification code of the corresponding
+                             simulation (e.g. SHY_SIM_ID="1995F100A1_A001" in
+                             file "1995F100A1_A001.ini");
+     - STR FILE VARIABLES -> edit the content of all the variables
+                             characterizing the simulation you want to run
+                             (settings, input data, restart file, etc.).
+    Moreover, there are the two following sections, which should (but not must)
+    be edited (variables assignment):
+     - TIME to SLEEP for the SPY -> define the "SPY_SLEEP_MIN" variable with
+                                    respect to your desire and to the length of
+                                    the simulation you want to run;
+     - DIRECTIVES for PLOTTING   -> define the "EXT_NODES_2_PLOT" variable
+                                    (array) according to your desire, making
+                                    sure to consider available EXT nodes IDs,
+                                    with respect to the simulation you want to
+                                    run.
+ 4) load the suite (ecflow_client --load=%SUITE%.def);
+ 5) begin the suite (ecflow_client --begin=%SUITE%)
+ 6) in case you want to run N (>1) simulations simultaneously, copy the "SIM_1"
+    family (FAMILY SECTION of the suite's definition file, "%SUITE%.def") below
+    itself, N-1 times, renaming the new families properly (e.g. "SIM_2",
+    "SIM_3", ..., "SIM_N") and following steps 1)-3).
+    Afterwards, if the suite already began, replace all the new families (e.g.
+    ecflow_client --replace=/%SUITE%/SIM_2 %SUITE%.def); otherwise, follow
+    steps 4) and 5).
+
+ WARNING! It is possible (very low probability) that when multiple simulations
+          are run, the "t_mkhtml_sim.ecf" tasks overlap, causing not all the
+          running simulations to appear on the web page. If it is the case,
+          just requeue the "html" subfamily ("spy" family) of the not appearing
+          simulations.
+
+WHAT TO DO IN CASE OF FAILURES
+In case of failures, follow the hints listed below:
+
+ 1) check which node generated the failure and try to remove the bug. All tasks
+    of this suite should complete without failures.
+    In many cases, you can re-queue the whole suite and the problem is solved;
+ 2) keep in mind to check the "ecFlow" log files and to save them before
+    re-requeuing the suite, otherwise they will be overwritten.
+    You can find log files in the suite's "ECF_HOME" subdirectory
+    ("%ECF_HOME%%SUITE%").
+
+GLOSSARY
+Some key, or particular, words are listed in the following, together with their
+brief description:
+
+ - SHYFEM model          -> see https://sites.google.com/site/shyfem/home;
+ - INF file              -> ASCII file, with ".inf" extension, generated by
+                            SHYFEM while it is running. It is a log file, which
+                            provides basic information on the evolution of the
+                            run (e.g. minimum and maximum temperature and
+                            salinity of the whole basin);
+ - STR file              -> ASCII parameter input file, with ".str" extension,
+                            needed to run SHYFEM. It guides SHYFEM's
+                            performance and contains all the necessary
+                            information for the main routine to execute the
+                            model;
+ - RST file              -> binary "restart" file, with ".rst" extension, of
+                            SHYFEM's simulations;
+ - SHY file              -> binary file, with ".shy" extension, storing
+                            SHYFEM's simulations outputs;
+ - TS file               -> SHY file storing temperature and salinity fields;
+ - HYDRO file            -> SHY file storing the sea water velocity field;
+ - EXT file              -> SHY file (actually with ".ext" extension) storing
+                            fields provided with higher frequency, for all the
+                            variables, but for EXT nodes only;
+ - EXT node:             -> set of nodes of the computational mesh, specified
+                            in the "$extra" section of SHYFEM's STR file, for
+                            which simulations outputs are provided with higher
+                            frequency;
+ - EXT nodes ASCII files -> ASCII time series files, resulting from a splitted
+                            (unpacked) EXT file, arranged in two or more
+                            columns, the first containing date and time
+                            (formatted as YYYY-MM-DD::hh:mm:ss), while the
+                            others containing actual data, referred to a
+                            specific vertical layer (2nd column -> layer 1, 3rd
+                            column -> layer 2, etc.). For 2D variables, there
+                            are only two columns and a reference layer can not
+                            be specified (for the water level, the reference is
+                            the sea surface). The basename of these files is of
+                            the following type: "what.dim.node", where "what"
+                            is the variable's abbreviation (e.g. "temp", "salt",
+                            "velx", "vely", "zeta"), "dim" is the variable's
+                            spatial dimension ("2d" or "3d") and "node" is
+                            consecutive EXT node numbering (e.g. "1" for EXT
+                            node 1, "2" for EXT node 2, etc.).
+                            "2d" files are characterized by a top line of
+                            metadata, starting with the "#" character, and are
+                            arranged in two columns, the first containing date
+                            and time (formatted as YYYY-MM-DD::hh:mm:ss) and
+                            the second containing the 2D variable (or the
+                            vertically averaged variable, in case of 3D ones).

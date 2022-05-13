@@ -1,0 +1,158 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at editing the HTML file that
+#                  defines the skeleton of the web page showing "spy"
+#                  (monitoring) products, for the specific simulation.
+#                  Specifically, an HTML block (i.e. a set of HTML lines),
+#                  defining a table row with few columns, is added in the HTML
+#                  file, under a given line.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-19.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+#  --- START OF FUNCTIONS ---
+
+# Remove the given file, if existent
+rm_file () {
+    # If the file provided to the function exists
+    if [[ -e $1 ]]; then
+        # Remove it and inform the user
+        rm $1; echo -e "\tFile: $1 removed.\n"
+    fi
+}
+
+#  --- END OF FUNCTIONS ---
+
+# Define the name (full path) of the HTML file that defines the skeleton of
+# the web page aimed at showing "spy" products
+spy_html_file="${PUB_HTML_SHY_SPY_DIR}/${SPY_HTML_FILENAME}"
+# Define the basename of a temporary file in which copying the HTML file
+spy_html_filename_tmp=$(mktemp -u html_tmp.XXXXX)
+# Define the pattern of the line of the HTML file, below which starting to edit
+# (addition of a table row, dedicated to the specific simulation)
+pattern_2_find="<!-- LIST OF SIMULATIONS -->"
+# Define the basename of a temporary file aimed at containing the HTML block
+# to be added under the given pattern, in the HTML file
+html_block_filename=$(mktemp -u html_block.XXXXX)
+# Get the current date in the format "YYYY-MM-DD hh:mm"
+DATE_START=$(date '+%%Y-%%m-%%d %%H:%%M')
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Check the existence of the HTML file:
+#  - if it exists
+if [[ -e $spy_html_file ]]; then
+    # Inform the user
+    echo -e "\tFile: ${spy_html_file} exists.\n"
+#  - if it does not exist
+else
+    # Inform the user and exit
+    echo -e "\tFile: ${$spy_html_file} does not exist. Please check.\n"; exit
+fi
+
+# Create the desired HTML block template through a "here document"
+cat <<EOF > ./$html_block_filename
+                <!-- %%SIM%% -->
+                <tr>
+                    <td>%%SIM%%</td>
+                    <td>%%DATE_START%%</td>
+                    <td><a href="./%%SHY_SIM_ID%%/%%SHY_INF_FILE_TAIL%%" target="_blank">Tail</a><br>
+                        <a href="./%%SHY_SIM_ID%%/%%FIGNAME_INF_T%%" target="_blank">Temperature</a><br>
+                        <a href="./%%SHY_SIM_ID%%/%%FIGNAME_INF_S%%" target="_blank">Salinity</a>
+                    </td>
+                    <td><a href="./%%SHY_SIM_ID%%/%%FIGNAME_EXT_T%%" target="_blank">Temperature</a><br>
+                        <a href="./%%SHY_SIM_ID%%/%%FIGNAME_EXT_S%%" target="_blank">Salinity</a><br>
+                        <a href="./%%SHY_SIM_ID%%/%%FIGNAME_EXT_Z%%" target="_blank">Water level</a>
+                    </td>
+                </tr>
+EOF
+
+# Check the outcome of the preparation of the HTML block template:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tFile: ${html_block_filename} successfully created."
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! File: ${html_block_filename} unsuccessfully created. ABORT..."; ERROR
+fi
+
+# Create the HTML block, starting from its template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%SIM%%/$SHY_SIM_ID/g
+    s/%%DATE_START%%/$DATE_START/g
+    s/%%SHY_SIM_ID%%/$SHY_SIM_ID/g
+    s/%%SHY_INF_FILE_TAIL%%/$SHY_INF_FILE_TAIL/g
+    s/%%FIGNAME_INF_T%%/$FIGNAME_INF_T/g
+    s/%%FIGNAME_INF_S%%/$FIGNAME_INF_S/g
+    s/%%FIGNAME_EXT_T%%/$FIGNAME_EXT_T/g
+    s/%%FIGNAME_EXT_S%%/$FIGNAME_EXT_S/g
+    s/%%FIGNAME_EXT_Z%%/$FIGNAME_EXT_Z/g
+EOF
+sed -i -f $SEDFILE $html_block_filename
+# Check the outcome of the preparation of the STR file:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tFile: ${html_block_filename} successfully edited.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! File: ${html_block_filename} unsuccessfully edited. ABORT..."; ERROR
+fi
+
+# Sleep an even random number of seconds, between 2 and 30, in order to try to
+# avoid the simultaneity of this task, run by (possible) multiple simulations
+sec_2_sleep=$(( ( RANDOM %% 15 ) + 1 )); sleep $((sec_2_sleep*2))
+
+# Insert the HTML block in the HTML temporary file, under the given pattern,
+# and inform the user
+sed -e "/${pattern_2_find}/r ${html_block_filename}" $spy_html_file > $spy_html_filename_tmp; echo -e "\tFile: ${spy_html_filename_tmp} successfully created."
+
+# Replace the HTML file with the temporary one (i.e. with the HTML file itself,
+# plus the desired HTML block), and inform the user
+mv $spy_html_filename_tmp $spy_html_file; echo -e "\tFile: ${spy_html_filename_tmp} moved to ${spy_html_file}.\n"
+
+# Function calling: remove the given files, if existent
+#  - HTML block
+rm_file "${html_block_filename}"
+#  - "sedfile"
+rm_file "${SEDFILE}"
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

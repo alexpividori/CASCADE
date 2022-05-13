@@ -1,0 +1,14 @@
+B01;temp
+B02;temp
+B03;temp
+P01;temp
+P02;temp
+P03;temp
+P04;temp
+P05;temp
+P06;temp
+P07;temp
+P08;temp
+P09;temp
+P10;temp
+P11;temp

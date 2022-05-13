@@ -1,0 +1,340 @@
+# ******************************************************************************
+#
+#  DESCRIPTION:   this "ecFlow" suite is dedicated to the analysis of the
+#                 spin-up time of the SHYFEM model.
+#
+#  DEVELOPER:     Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                 ARPA FVG - SOC Stato dell Ambiente - CRMA
+#                 "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE: 2021-10-21.
+#
+#  MODIFICATIONS: 2021-11-05 -> addition of the family named "spinup_fit".
+#
+#  VERSION:       0.2.
+#
+# ******************************************************************************
+
+suite SHYFEM_SPINUP
+
+
+    # **********************
+    # * DEFINITION SECTION *
+    # **********************
+
+    # --- CLOCK ---
+
+    # Real clock
+    clock real
+
+    # --- ENVIRONMENTAL VARIABLES ---
+
+    # Directory used as a prefix portion of the path of the job files created
+    # by "ecFlow" server
+    edit ECF_HOME /lustre/arpa/scratch/ecflow/AdriaClim/
+
+    # Directory used to find the "ecFlow" files
+    edit ECF_FILES /lustre/arpa/AdriaClim/src/ecflow/suites/SHYFEM_SPINUP
+
+    # Directory used to find the files to be included in the nodes
+    edit ECF_INCLUDE /lustre/arpa/AdriaClim/src/ecflow/suites/SHYFEM_SPINUP/include
+
+    # Number of times a job should be rerun if it aborts (default is 2) 
+    edit ECF_TRIES 1
+
+    # Number of seconds to sleep at the end of each task (not necessary, but
+    # suggested to avoid task overlapping)
+    edit SLEEP 3
+
+    # Root directory used to store initialisation files (it is a feature of the
+    # ARPA FVG - CRMA implementation of "ecFlow")
+    edit SUITE_INI_FILE /lustre/arpa/AdriaClim/src/ecflow/suites/SHYFEM_SPINUP/include
+
+    # Root directory for job summary reports storage. If it is not defined, the
+    # reports are going to be saved in %ECF_HOME%. The summary is a csv file
+    # (%YYYY%_ecFlow_jobs-summary.csv)
+    edit JOBS_REPORT_DIR /lustre/arpa/AdriaClim/data/monit/ecflow/jobs_sum
+
+    # --- SUITE VARIABLES ---
+
+    # Identification codes of the two simulations to analyse
+    edit SIMA "1995F500A1_A022"
+    edit SIMB "1995F500A1_A023"
+
+
+    # ******************
+    # * FAMILY SECTION *
+    # ******************
+
+    # +------------------------------------------------------------------------+
+    # | This is the family for checking the existence of the data files to be  |
+    # | analysed: the existence of SHYFEM outputs (TS, HYDRO and EXT files) is |
+    # | checked for both simulations, henceforth called SIMA ("check_SIMA"     |
+    # | family) and SIMB ("check_SIMB" family). Each type of file is checked   |
+    # | individually ("ts", "hydro" and "ext" families).                       |
+    # +------------------------------------------------------------------------+
+
+    family sentinel
+        #defstatus complete
+        family check_SIMA
+            edit SIM %SIMA%
+            family ts
+                edit TOCHECK "ts.shy"
+                task t_check_SIM
+                    event check_OK
+            endfamily
+            family hydro
+                edit TOCHECK "hydro.shy"
+                task t_check_SIM
+                    event check_OK
+            endfamily
+            family ext
+                edit TOCHECK "ext"
+                task t_check_SIM
+                    event check_OK
+             endfamily
+        endfamily
+        family check_SIMB
+            edit SIM %SIMB%
+            family ts
+                edit TOCHECK "ts.shy"
+                task t_check_SIM
+                    event check_OK
+            endfamily
+            family hydro
+                edit TOCHECK "hydro.shy"
+                task t_check_SIM
+                    event check_OK
+            endfamily
+            family ext
+                edit TOCHECK "ext"
+                task t_check_SIM
+                    event check_OK
+            endfamily
+        endfamily
+    endfamily
+
+    # +------------------------------------------------------------------------+
+    # | This is the family for converting or splitting (unpacking) data files: |
+    # | TS ("ts" family) and HYDRO ("hydro" family) outputs are converted from |
+    # | SHY (.shy) to NetCDF (.nc), while EXT ("ext" family) outputs are       |
+    # | splitted (unpacked), either for SIMA ("preproc_SIMA" family) and SIMB  |
+    # | ("preproc_SIMB" family).                                               |
+    # +------------------------------------------------------------------------+
+
+    family convert_and_split
+        defstatus complete
+        family preproc_SIMA
+            edit SIM %SIMA%
+            family ts
+                defstatus complete
+                trigger /SHYFEM_SPINUP/sentinel/check_SIMA/ts/t_check_SIM:check_OK
+                edit TOPREPROC "ts.shy"
+                task t_convert_SIM
+                    event preproc_OK
+            endfamily
+            family hydro
+                defstatus complete
+                trigger /SHYFEM_SPINUP/sentinel/check_SIMA/hydro/t_check_SIM:check_OK
+                edit TOPREPROC "hydro.shy"
+                task t_convert_SIM
+                    event preproc_OK
+            endfamily
+            family ext
+                trigger /SHYFEM_SPINUP/sentinel/check_SIMA/ext/t_check_SIM:check_OK
+                edit TOPREPROC "ext"
+                task t_split_SIM
+                    event preproc_OK
+            endfamily
+        endfamily
+        family preproc_SIMB
+            edit SIM %SIMB%
+            family ts
+                defstatus complete
+                trigger /SHYFEM_SPINUP/sentinel/check_SIMB/ts/t_check_SIM:check_OK
+                edit TOPREPROC "ts.shy"
+                task t_convert_SIM
+                    event preproc_OK
+            endfamily
+            family hydro
+                defstatus complete
+                trigger /SHYFEM_SPINUP/sentinel/check_SIMB/hydro/t_check_SIM:check_OK
+                edit TOPREPROC "hydro.shy"
+                task t_convert_SIM
+                    event preproc_OK
+            endfamily
+            family ext
+                trigger /SHYFEM_SPINUP/sentinel/check_SIMB/ext/t_check_SIM:check_OK
+                edit TOPREPROC "ext"
+                task t_split_SIM
+                    event preproc_OK
+            endfamily
+        endfamily
+     endfamily
+
+    # +------------------------------------------------------------------------+
+    # | This is the family for comparing SIMA and SIMB, through time series    |
+    # | plots, either for temperature ("t" family), salinity ("s" family),     |
+    # | eastward ("u" family) and northward ("v" family) sea water velocity,   |
+    # | and water level ("z" family), retrieved in splitted (unpacked) EXT     |
+    # | outputs, hence in EXT nodes ASCII files. For each variable (t, s, u, v |
+    # | and z), EXT node and/or vertical layer (in case of 3D variables), the  |
+    # | time series of the differences between SIMA and SIMB, and of the sums  |
+    # | of the differences themselves, computed from each time step onward,    |
+    # | are provided.
+    # +------------------------------------------------------------------------+
+
+    family time_series_plot_cp
+        defstatus complete
+        trigger /SHYFEM_SPINUP/convert_and_split/preproc_SIMA/ext/t_split_SIM:preproc_OK and /SHYFEM_SPINUP/convert_and_split/preproc_SIMB/ext/t_split_SIM:preproc_OK
+        family t
+            edit TOPROC "temp.3d."
+            task t_time_series_plot_cp
+        endfamily
+        family s
+            edit TOPROC "salt.3d."
+            task t_time_series_plot_cp
+        endfamily
+        family u
+            edit TOPROC "velx.3d."
+            task t_time_series_plot_cp
+        endfamily
+        family v
+            edit TOPROC "vely.3d."
+            task t_time_series_plot_cp
+        endfamily
+        family z
+            edit TOPROC "zeta.2d."
+            task t_time_series_plot_cp
+        endfamily
+    endfamily
+
+    # +------------------------------------------------------------------------+
+    # | This is the family for estimatimg the spin-up time of the SHYFEM       |
+    # | model, according to a regression analysis, performed either for        |
+    # | temperature ("t" family), salinity ("s" family), eastward ("u" family) |
+    # | and northward ("v" family) sea water velocity, and water level ("z"    |
+    # | family). For each variable (t, s, u, v and z), EXT node and/or         |
+    # | vertical layer (in case of 3D variables), the analysis is carried out  |
+    # | on the time series of the sum of the differences between SIMA and      |
+    # | SIMB, computed from each time step onward. Regression plots are drawn. |
+    # +------------------------------------------------------------------------+
+
+    family spinup_fit
+        defstatus complete
+        family t
+            trigger /SHYFEM_SPINUP/time_series_plot_cp/t eq complete
+            edit TOPROC "temp.3d."
+            task t_spinup_fit
+        endfamily
+        family s
+            trigger /SHYFEM_SPINUP/time_series_plot_cp/s eq complete
+            edit TOPROC "salt.3d."
+            task t_spinup_fit
+        endfamily
+        family u
+            trigger /SHYFEM_SPINUP/time_series_plot_cp/u eq complete
+            edit TOPROC "velx.3d."
+            task t_spinup_fit
+        endfamily
+        family v
+            trigger /SHYFEM_SPINUP/time_series_plot_cp/v eq complete
+            edit TOPROC "vely.3d."
+            task t_spinup_fit
+        endfamily
+        family z
+            trigger /SHYFEM_SPINUP/time_series_plot_cp/z eq complete
+            edit TOPROC "zeta.2d."
+            task t_spinup_fit
+        endfamily
+    endfamily
+
+    # +------------------------------------------------------------------------+
+    # | This is the family for drawing contour plots of the horizontal         |
+    # | distribution of temperature ("t" family), salinity ("s" family),       |
+    # | eastward ("u" family) and northward ("v" family) sea water velocity,   |
+    # | and water level ("z" family), at constant depth. Specifically, a       |
+    # | figure is drawn for each vertical layer (in case of 3D variables) to   |
+    # | be considered.                                                         |
+    # +------------------------------------------------------------------------+
+
+    family spinup_ho_distribution_plot
+        #defstatus complete
+        family t
+            trigger /SHYFEM_SPINUP/spinup_fit/t eq complete
+            edit TOPROC "temp.3d."
+            task t_spinup_ho_distribution_plot
+        endfamily
+        family s
+            trigger /SHYFEM_SPINUP/spinup_fit/s eq complete
+            edit TOPROC "salt.3d."
+            task t_spinup_ho_distribution_plot
+        endfamily
+        family u
+            trigger /SHYFEM_SPINUP/spinup_fit/u eq complete
+            edit TOPROC "velx.3d."
+            task t_spinup_ho_distribution_plot
+        endfamily
+        family v
+            trigger /SHYFEM_SPINUP/spinup_fit/v eq complete
+            edit TOPROC "vely.3d."
+            task t_spinup_ho_distribution_plot
+        endfamily
+        family z
+            trigger /SHYFEM_SPINUP/spinup_fit/z eq complete
+            edit TOPROC "zeta.2d."
+            task t_spinup_ho_distribution_plot
+        endfamily
+    endfamily
+
+    # +------------------------------------------------------------------------+
+    # | This is the family for computing some of the main statistical          |
+    # | parameters of the distribution of spin-up times estimated for a        |
+    # | certain variable (t, s, u, v and z) and for all the EXT nodes (and     |
+    # | vertical layers, in case of 3D variables). This is performed either    |
+    # | for temperature ("t" family), salinity ("s" family), eastward ("u"     |
+    # | family) and northward ("v" family) sea water velocity, and water level |
+    # | ("z" family). Moreover, the summary of spin-up time statistics of all  |
+    # | the variables is provided in a file, and depicted through a box and    |
+    # | whiskers plot ("summary_and_boxplots" family).
+    # +------------------------------------------------------------------------+
+
+    family spinup_statistics
+        defstatus complete
+        family t
+            trigger /SHYFEM_SPINUP/spinup_fit/t eq complete
+            edit TOPROC "temp.3d."
+            task t_spinup_statistics
+        endfamily
+        family s
+            trigger /SHYFEM_SPINUP/spinup_fit/s eq complete
+            edit TOPROC "salt.3d."
+            task t_spinup_statistics
+        endfamily
+        family u
+            trigger /SHYFEM_SPINUP/spinup_fit/u eq complete
+            edit TOPROC "velx.3d."
+            task t_spinup_statistics
+        endfamily
+        family v
+            trigger /SHYFEM_SPINUP/spinup_fit/v eq complete
+            edit TOPROC "vely.3d."
+            task t_spinup_statistics
+        endfamily
+        family z
+            trigger /SHYFEM_SPINUP/spinup_fit/z eq complete
+            edit TOPROC "zeta.2d."
+            task t_spinup_statistics
+        endfamily
+        family summary_and_boxplots
+            trigger t eq complete and s eq complete and u eq complete and v eq complete and z eq complete
+            # The "TOINCLUDE" variable has to be defined as one of the "TOPROC"
+            # variables defined above (of your choice), in the same main family
+            edit TOINCLUDE "temp.3d."
+            edit VARS "temp;salt;velx;vely;zeta"
+            task t_spinup_boxplots
+        endfamily
+    endfamily
+
+
+endsuite

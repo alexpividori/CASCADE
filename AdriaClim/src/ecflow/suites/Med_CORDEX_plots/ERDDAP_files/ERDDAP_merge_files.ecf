@@ -1,0 +1,71 @@
+%manual
+%include <man/merge_files.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <etc/general_ERDDAP.ini>
+
+
+cd $tmp_dir_root
+module load $cdo_module  &>/dev/null
+
+GOON=0
+n_line=1
+
+while IFS=";" read   VariableName CMIP5ExperimentName link_suffix file_name_root Frequency StartTime EndTime
+do
+
+	if [[ ! -d $output_data_root_dir ]]; then
+             mkdir -p $output_data_root_dir  || { echo "The directory $output_data_root_dir can't be created"; ERROR; }
+             echo "Directory $output_data_root_dir has been created"
+        fi
+
+  input_dir="$tmp_dir_root/remapped_files_${file_name_root}_${n_line}" 
+  output_dir="$output_data_root_dir" 
+  n_files=$( ls $tmp_dir_root/remapped_files_${file_name_root}_${n_line} | wc -l ) 
+
+  file_list_array_n=$( mktemp file_list_tomerge_XXX.txt )
+  file_list_array="${tmp_dir_root}/${file_list_array_n}"
+  ls $input_dir > "${file_list_array}"
+
+  k=0
+
+      while read line
+      do
+        file_names[$k]="$input_dir/$line" 
+        (( k = k + 1 ))
+      done < $file_list_array
+
+  echo -e "\t\n The directory \"$output_dir\" will be filled with drops files right now."
+  echo ${file_names[@]}
+#=============================================================================
+
+  echo -e "\t\n The ${n_line}-th line of \"initialization_file_download.txt\" will be processed rigth now"
+
+	if [[ "$VariableName" == "sosaline" || "$VariableName" == "sossheig" || "$VariableName" == "sosstsst" || "$VariableName" == "multi" ]]; then
+	     output_file="edit_multi_MED8_BASIN-00_${CMIP5ExperimentName}_AdriaClim_mon_${StartTime}_${EndTime}.nc"
+	else
+	     output_file="edit_${VariableName}_MED8_BASIN-00_${CMIP5ExperimentName}_AdriaClim_mon_${StartTime}_${EndTime}.nc"
+	fi
+
+  cdo --no_history mergetime  ${file_names[@]}  ${output_dir}/${output_file}
+
+  if [[ $GOON -eq 0 ]] ; then
+     echo -e "\t The merging process is just finished."
+  else
+     echo -e "\t ERROR: something is gone wrong in the merging process."
+  fi
+
+rm $file_list_array
+unset file_names
+
+(( n_line++ ))
+
+done < $init_dir/initialization_file_download.txt
+
+echo -e "\tThe task is now finished"
+
+%include <tail_4_bash.h>

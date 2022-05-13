@@ -1,0 +1,191 @@
+%manual
+%include <man/general.man>                              # General manual for all task in this suite
+%include <man/tlog_arcflux.man>                         # Specific manual for this task
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks. 
+                                                        # It manages general calls to ecflow client
+
+
+%include <qsub_4_bash.h>                                # Include the function managing the jobs
+                                                        # submission to the queue
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+
+    echo -e "\n\n\t\tARCHIVE ecFlow FILES for data provenance\n"
+    EXIT_STATUS=0   # set default exit status everything OK
+#
+# Check whether suite initialization file exists
+#
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE%" not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE%" found.\n"
+    fi
+#
+# Load suite initialization file 
+#
+    . %SUITE_INI_FILE%
+    #
+    #  +-----------------------------------------------------------------+
+    #  |    Load parameters useful for the whole node                    |
+    #  +-----------------------------------------------------------------+
+    #
+    BACKUP_HOME=${PROV_LOG_ROOT_DIR:-"./"}   # The root directory where to start the archival
+    ARCH_OPT="${PROV_LOG_TAR_OPT:=czv}"      # Load tar archive option                    
+    TAR_FEXT="tgz"                           # tar archive extension. Please check $ARCH_OPT tobe coherent
+    ARCH_DIR="${PROV_LOG_TAR_DIR:=NULL}"     # Root dir where to store the tar archive 
+    ARCH_BUF="${PROV_TIME_BUFFER:=NULL}"     # Time window buffer to be considered to keep files in the archive
+    ARCH_REM="${PROV_TIME_LONGTAIL:=NULL}"   # Time window to keep files for long tail provenance. Older are removed
+    #
+    #  +-----------------------------------------------------------------+
+    #  |    Set the default parameters for data provenance backup        |
+    #  +-----------------------------------------------------------------+
+    #
+    PROV_LOG_DATE="%ECF_DATE%"         # Set run date as provenance date 
+    echo -e "\n\tProvenance date is set to: $PROV_LOG_DATE  (ecFlow environmental date is: %ECF_DATE%)"   
+    TIME_WINDOW=""        
+    if [[ "${ARCH_BUF}" != "NULL" ]];then 
+        TIME_WINDOW_ERR=0;TIME_WINDOW="$(date -u -d "${ARCH_BUF} ago" +%%F' '%%T)"  || TIME_WINDOW_ERR=1       
+        if [[ $TIME_WINDOW_ERR -eq 0 ]];then
+           echo -e "\tProvenance time window buffer is set: ${ARCH_BUF}\n\tArchive will not include files older than: ${TIME_WINDOW##*=}.\n"   
+        else
+           echo -e "\tError in setting time window buffer!!! It is NOT set: ${ARCH_BUF}\n\tArchive will include all files.\n"   
+        fi
+    else
+        echo -e "\tProvenance time window buffer is not set, so all files are kept in the archive.\n"   
+    fi
+    #
+    #  +-----------------------------------------------------------------+
+    #  |     Create the temporary directory for messages preparation     |
+    #  +-----------------------------------------------------------------+
+    #
+    BACKUP_TMP_DIR="${BACKUP_HOME}/$(mktemp -u backup_dir.XXXXX)"    # Temporary directory for archival generation
+    if [[ ! -d $BACKUP_TMP_DIR  ]];then mkdir -p $BACKUP_TMP_DIR;fi  # Create temporary directory 
+    echo -e "\tCreated temporary directory: $BACKUP_TMP_DIR"
+    cd $BACKUP_TMP_DIR
+    echo -e "\tCurrently I am in the temporary directory: $(pwd)"
+    
+    #
+    #
+    #  +-----------------------------------------------------------------+
+    #  |                                                                 |
+    #  |     Archival of all files related to ecFlow (job and stdout)    |
+    #  |                                                                 |
+    #  +-----------------------------------------------------------------+
+    #
+    #
+    DT_START=$(date -u +%%s)                                   # Get start time in seconds from epoch
+    echo -e "\n\tSTART Archival of ecFlow files at: $(date -u +%%F' '%%T) UTC\n"
+
+    GO_ON=0
+    if [[ "${ARCH_DIR}" == "NULL" ]] ;then 
+       echo -e "\n\n\tRoot directory to store the tar archive is NOT defined. Impossible to archive flux: please check %SUITE%.ini"
+       GO_ON=1
+    else
+        ARCH_DIR="${ARCH_DIR}/${PROV_LOG_DATE:0:4}"   # Archive directory is re-defined as yearly subdirectory of the root archive dir.
+        if [[ -d ${ARCH_DIR} ]] ;then
+           echo -e "\n\tDirectory to store the tar archive found: ${ARCH_DIR}"
+        else
+           echo -e "\n\tDirectory to store the tar archive NOT found."
+           echo -en "\tCreating directory: ${ARCH_DIR} ..."
+           mkdir -p  ${ARCH_DIR} > /dev/null 2>&1 || GO_ON=1
+           if [[ $GO_ON -eq 0 ]];then echo -en " created."; else echo -en " failed!!!!!!!!!!" ; fi
+        fi
+    fi
+    
+    if [[ $GO_ON -eq 0 ]];then
+       TAR_FILE="${ARCH_DIR}/%SUITE%_flux-bakcup_$(date -u +%%Y%%m%%d-%%H%%M%%S).${TAR_FEXT}"
+       R="%ECF_HOME%"
+       echo -e "\n\tArchive command is:"
+       if [[ -z ${TIME_WINDOW} ]];then 
+          #
+          # Add all files together in the copressed archive in one shot because no time window is activated
+          #
+          echo -e "\ttar ${ARCH_OPT}f ${TAR_FILE}  --ignore-failed-read  -C ${R} %SUITE% %ECF_FILES% %ECF_FILES%.*" 
+          tar ${ARCH_OPT}f ${TAR_FILE} --ignore-failed-read -C ${R} %SUITE% %ECF_FILES% %ECF_FILES%.* 2>&1 | sed s/^/\\t\\t/g || echo -e "\n\nERROR IN CREATING ARCHIVE!!!\n\n"
+       else
+          #
+          # Add  files in the archive in two steps and finally compress it. This is because time window is         
+          # applied to nodes outputs and log, but not to the suite source and initialization file
+          #
+          TMP_TAR_FILE="${TAR_FILE//${TAR_FEXT}/tar}"
+          #
+          # Nodes outputs and log files from %%ECF_HOME%% with time window selection 
+          echo -e "\tFirst:\n\ttar -cvf ${TMP_TAR_FILE}  --after-date=\"${TIME_WINDOW}\" --ignore-failed-read  -C ${R} %SUITE%" 
+          tar -cvf ${TMP_TAR_FILE} --after-date="${TIME_WINDOW}" --ignore-failed-read -C ${R} %SUITE%  2>&1 | grep -v "not dumped" | sed s/^/\\t\\t/g \
+          || echo -e "\n\nERROR IN CREATING ARCHIVE!!!\n\n"
+          #
+          # Flow sources, manuals and initialization files without time window selection are appended to the previous archive
+          echo -e "\tSecond:\n\ttar -rvf ${TMP_TAR_FILE}  --ignore-failed-read  %ECF_FILES% %ECF_FILES%.* " 
+          tar -rvf ${TMP_TAR_FILE}  --ignore-failed-read  %ECF_FILES% %ECF_FILES%.*  2>&1 | sed s/^/\\t\\t/g \
+          || echo -e "\n\nERROR IN CREATING ARCHIVE!!!\n\n"
+          #
+          # Compress archive with gzip compressor and remove temporary rchive
+          echo -e "\tThird:\n\tgzip -cv ${TMP_TAR_FILE} > ${TAR_FILE} " 
+          gzip -cv ${TMP_TAR_FILE} > ${TAR_FILE}  | sed s/^/\\t\\t/g || echo -e "\n\nERROR IN CREATING ARCHIVE!!!\n\n"
+          if [[ -e ${TMP_TAR_FILE} ]];then rm ${TMP_TAR_FILE};fi 
+       fi
+       echo -e "\n\tArchive created: ${TAR_FILE}\n\tIts properites areas follow.\n"
+       stat  ${TAR_FILE} | sed s/^/\\t/g  || echo -e "\n\nERROR IN CREATING ARCHIVE!!!\n\n"
+       echo -e  "\n\t===================================\n"
+       #
+       #  +-----------------------------------------------------------------+
+       #  |     Remove the long tail of provenace information if required   |
+       #  +-----------------------------------------------------------------+
+       #
+       if [[ "${ARCH_REM}" != "NULL" ]];then
+          echo -e "\n\n\tSTART removal of provenance long tail at: $(date -u +%%F' '%%T) UTC\n"
+          ARCH_REM=${ARCH_REM%%%% *}
+          echo -e "\tNumber of days for the long tail is: ${ARCH_REM} days"
+          REM_GOON=0; ARCH_REM_MINS=$((${ARCH_REM}*1440)) || REM_GOON=1
+          if [[ $REM_GOON -eq 0 ]];then
+             #
+             # Create the file list to be considered for the long tail removal
+             #
+             FLAG_TO_GO=0; FULL_LIST_FILE="$(mktemp -u ./file-list-to-be-removed.XXXX)"
+             echo -e "\n\tCOMMAND: find  ${R}/%SUITE%  -name "*" -mmin +${ARCH_REM_MINS} -type f  > $FULL_LIST_FILE"
+             find  ${R}/%SUITE%  -name "*" -mmin +${ARCH_REM_MINS} -type f > $FULL_LIST_FILE ||  FLAG_TO_GO=1
+             if [[ $FLAG_TO_GO -eq 1 ]]; then
+                echo -e "\tSome problems occurred during file selection; please check paths"
+                echo -e "\tor look at FULL_LIST_FILE=$(pwd)/${FULL_LIST_FILE}"
+             else
+                NFILES=$(cat ${FULL_LIST_FILE} | wc -l)
+                echo -e "\tFile selection done.\n\tList available in file: $(pwd)/${FULL_LIST_FILE}"
+                echo -e "\tNumber of selected files: ${NFILES}\n"
+                NNOTRM=0
+                for FRM in $(cat ${FULL_LIST_FILE});do
+                    rm -v $FRM | sed s/^/\\t/g ||  NNOTRM=$(($NNOTRM+1))
+                done
+                echo -e "\n\tFiles expected to be removed: $NFILES - Not removed because of problems: $NNOTRM\n" 
+             fi
+             if [[ -e $FULL_LIST_FILE ]];then rm $FULL_LIST_FILE; fi
+          else
+             echo -e "\n\tWARNING!!!! It is impossible to remove provenance long tail becuase the number of days is not and integers!" 
+             echo -e "\tCheck PROV_TIME_LONGTAIL=${ARCH_REM}, in the suite initialization file\n"
+          fi
+       else
+          echo -e "\n\n\tProvenance long tail is kept because you did not set the PROV_TIME_LONGTAIL parameter"
+          echo -e "\tin the suite initialization file: %SUITE_INI_FILE%\n\tFiles are not removed."
+       fi
+       PROV_TAIL_WEIGHT="$(du -shc ${R}/%SUITE%) | tail -n 1";  PROV_TAIL_WEIGHT="$(echo $PROV_TAIL_WEIGHT| cut -d " " -f 1)"
+       echo -e "\tAt present, $(date -u), provenance long tail accounts for: ${PROV_TAIL_WEIGHT}\n"
+    fi 
+    #
+    #  +-----------------------------------------------------------------+
+    #  |     Remove the temporary directory for messages preparation     |
+    #  +-----------------------------------------------------------------+
+    #
+    echo -e "\n\n\tSTOP Archival of ecFlow files at: $(date -u +%%F' '%%T) UTC\n"
+    DT_STOP=$(date -u +%%s)                                   # Get end time in seconds from epoch
+    echo -e "\tArchival activity completed in: $(($DT_STOP - $DT_START)) seconds\n\n"
+    if [[ -d $BACKUP_TMP_DIR  ]];then rm -Rv $BACKUP_TMP_DIR | sed -e s/^/\\t/g ;fi  # Remove temporary directory 
+  
+    EXIT_STATUS=$?
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks. 
+                                       # It manages general calls to ecflow client

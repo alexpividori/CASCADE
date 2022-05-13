@@ -1,0 +1,69 @@
+%manual
+%include <man/merge_files.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <qsub_4_bash.h>
+%include <etc/general_Med_CORDEX_plots.ini>
+
+
+cd $tmp_dir_root
+module load $cdo_module  &>/dev/null
+
+GOON=0
+i=1
+
+while IFS=";" read VariableName Domain GCMModelName CMIP5ExperimentName CMIP5EnsembleMember RCMModelName RCMVersionID Frequency StartTime EndTime
+do
+
+	if [[ ! -d $output_data_root_dir/${GCMModelName}_${RCMModelName} ]]; then
+             mkdir -p $output_data_root_dir/${GCMModelName}_${RCMModelName} \
+             || { echo "The directory $output_data_root_dir/${GCMModelName}_${CMIP5ExperimentName} can't be created"; ERROR; }
+             echo "Directory $output_data_root_dir/${GCMModelName}_${RCMModelName} has been created"
+        fi
+
+  input_dir="$tmp_dir_root/remapped_files_${GCMModelName}_${CMIP5ExperimentName}_${VariableName}"
+  output_dir="$output_data_root_dir/${GCMModelName}_${RCMModelName}"
+  n_files=$( ls $tmp_dir_root/remapped_files_${GCMModelName}_${CMIP5ExperimentName}_${VariableName} | wc -l )
+
+  file_list_array_n=$( mktemp file_list_tomerge_XXX.txt )
+  file_list_array="${tmp_dir_root}/${file_list_array_n}"
+  ls $input_dir > "${file_list_array}"
+
+  k=0
+
+      while read line
+      do
+      file_names[$k]="$input_dir/$line" ; (( k = k + 1 ))
+      done < $file_list_array
+
+  echo -e "\t\n The directory \"$output_dir\" will be filled with drops files right now."
+  echo ${file_names[@]}
+#=============================================================================
+
+  echo -e "\t\n The $i-th line of \"initialization_file_download.txt\" will be processed rigth now"
+
+output_file="edit_${VariableName}_${Domain}_${GCMModelName}_${CMIP5ExperimentName}_${CMIP5EnsembleMember}_${RCMModelName}_\
+${RCMVersionID}_${Frequency}_${StartTime}_${EndTime}.nc"
+
+  cdo --no_history mergetime  ${file_names[@]}  ${output_dir}/${output_file}
+
+  if [[ $GOON -eq 0 ]] ; then
+     echo -e "\t The merging time process is just finished."
+  else
+     echo -e "\t ERROR: something is gone wrong in the merging process."
+  fi
+
+rm $file_list_array
+unset file_names
+
+(( i++ ))
+
+done < $init_dir/initialization_file_download.txt
+
+echo -e "\tThe task is now finished"
+
+%include <tail_4_bash.h>

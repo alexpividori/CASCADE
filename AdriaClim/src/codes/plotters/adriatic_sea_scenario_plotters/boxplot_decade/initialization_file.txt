@@ -1,0 +1,15 @@
+B01;zos_dmm
+B02;zos_dmm
+B03;zos_dmm
+P01;zos_dmm
+P02;zos_dmm
+P03;zos_dmm
+P04;zos_dmm
+P05;zos_dmm
+P06;zos_dmm
+P07;zos_dmm
+P08;zos_dmm
+P09;zos_dmm
+P10;zos_dmm
+P11;zos_dmm
+P12;zos_dmm

@@ -1,0 +1,15 @@
+# ***********************************
+# * SIMULATIONS ID: CHARACTERS 9-10 *
+# ***********************************
+# The table below defines the meaning of characters 9-10 in the alphanumeric
+# identification code, of the simulations already performed in the frame of the
+# AdriaClim INTERREG IT-HR project, by ARPA FVG (PP11).
+# It is worth to remind that characters 9-10 are reserved to the identification
+# number of the time coverage of the simulation.
+# To know how to use this table, read the README file belonging to this
+# directory.
+# ***********************************
+ID;Synthetic description;Comments
+A0;Monthly;Monthly coverage
+A1;Many months;Monthly coverage for a range of contiguous months
+D0;Yearly;Yearly coverage

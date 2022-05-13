@@ -1,0 +1,56 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at checking if there is
+#                  consistency about the identification code of the simulation to
+#                  be run, in the basename of the initialisation file to be
+#                  included (see the EXTERNAL FILES comment section) and in the
+#                  dedicated variable, contained in this file.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-10.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# Check if there is consistency about the identification code of the simulation
+# to be run, in the basename of the initialisation file to be included (family
+# variable) and in the dedicated variable, contained in this file:
+#  - if there is consistency
+if [[ %SIM% == $SHY_SIM_ID ]]; then
+    # Inform the user
+    echo -e "\tSimulation ID: there is consistency."
+    echo -e "\tBasename of file '%SIM%.ini' (%SIM%) is consistent with variable 'SHY_SIM_ID' (${SHY_SIM_ID})."
+#  - if there is no consistency
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Simulation ID: there is no consistency. Please check."
+    echo -e "\t       Basename of file '%SIM%.ini' (%SIM%) is not consistent with variable 'SHY_SIM_ID' (${SHY_SIM_ID})."; ERROR
+fi
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

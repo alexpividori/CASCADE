@@ -1,0 +1,222 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at splitting (unpacking) a
+#                  desired EXT file, resulting from a SHYFEM simulation.
+#                  Splitting is performed by the use of a job script, prepared
+#                  from its related template, through a "sedfile" (see the
+#                  EXTERNAL CALLS comment section).
+#
+#  EXTERNAL CALLS: - job template aimed at splitting (unpacking) a desired EXT
+#                    file, by the use of the "shyelab" SHYFEM's intrinsic
+#                    routine.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-10-01.
+#
+#  MODIFICATIONS:  2021-10-04 -> change of the working directory;
+#                             -> symbolic link of the desired SHY file to be
+#                                converted, to the working directory.
+#                  2021-10-06 -> addition of a line removing the symbolic
+#                                link to the desired file to be splitted
+#                                (unpacked).
+#                  2021-10-15 -> in case of errors, exit with EXIT_STATUS=1.
+#                  2021-10-22 -> improvement in the description of the task
+#                                and adjustment of some details.
+#                  2021-10-27 -> sleep 3 seconds before removing the working
+#                                directory.
+#                  2021-10-29 -> addition of some new variables in the "here
+#                                document".
+#
+#  VERSION:        0.7.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# **********************
+#  START OF MAIN SCRIPT
+# **********************
+
+# Define the default status for the submission of the desired job script:
+#  - OKKO=0 -> all went OK
+#  - OKKO=1 -> something went KO
+OKKO=0
+# Define the default status for the creation of directories:
+#  - OKKO_mkdir=0 -> all went OK
+#  - OKKO_mkdir=1 -> something went KO
+OKKO_mkdir=0
+# Define the name (full path) of a working directory (to be removed after
+# its usage), by the use of both family variables and variables retrieved in
+# the initialisation file peculiar to the given simulation
+work_dir="${SCRATCH_DIR}/$(mktemp -u %TOPREPROC%.XXXXX)"
+# Define the name (full path) of the desired file to be splitted (unpacked), by
+# the use of both suite variables and variables retrieved in the initialisation
+# file peculiar to the given simulation
+EXT_FILE="${SHY_SIM_ID_DIR}/${SHY_SIM_NAME}.%TOPREPROC%"
+# Define the basename of the job to be used to convert simulation outputs from
+# SHY to NetCDF, starting from its related template (provided in the
+# initialisation file peculiar to the given simulation, with its full path)
+JOB="${JOB_EXTSPLIT_TPL##*/}"   # consider the basename only
+JOB="${JOB//.tpl/}"             # remove the ".tpl" extension
+
+# Inform the user about the current directory
+echo -e "\n\tCurrent directory: $(pwd).\n"
+
+# Check if the working directory is already existent:
+#  - if it already exists
+if [[ -e $work_dir ]]; then
+    # Inform the user and remove it
+    echo -e "\n\tDirectory: ${work_dir} already exists. Removing it and creating it from scratch...\n"
+    rm -r $work_dir
+#  - if it does not exist
+else
+    # Inform the user
+    echo -e "\n\tDirectory: ${work_dir} does not exist. Creating it...\n"
+fi
+# Create the working directory
+mkdir $work_dir || OKKO_mkdir=1
+# Check the outcome of creation of the working directory:
+#  - if all went OK
+if [[ OKKO_mkdir -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tDirectory: ${work_dir} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Directory: ${work_dir} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# Move to the working directory, informing the user
+echo -e "\n\tChange directory: moving to ${work_dir}...\n"; cd $work_dir
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Make a symbolic link of the desired file to be splitted (unpacked), to the
+# current directory, and get its basename
+ln -sv $EXT_FILE ./
+FILE2SPLIT="${EXT_FILE##*/}"
+
+# Prepare the job to be used to convert simulation outputs from SHY to NetCDF,
+# starting from its related template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_EXTSPLIT_TPL_N/g
+    s/%%%%JOB_o%%%%/$JOB_EXTSPLIT_TPL_o/g
+    s/%%%%JOB_e%%%%/$JOB_EXTSPLIT_TPL_e/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_EXTSPLIT_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_EXTSPLIT_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_EXTSPLIT_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%SHY_MOD%%%%/${SHY_MOD//\//\\/}/g
+    s/%%%%SHY_SHYELAB%%%%/${SHY_SHYELAB//\//\\/}/g
+    s/%%%%FILE2SPLIT%%%%/$FILE2SPLIT/g
+EOF
+sed -f $SEDFILE $JOB_EXTSPLIT_TPL > $JOB
+# Check the outcome of the preparation of the job:
+#  - if all went OK
+if [[ $? -eq 0 ]]; then
+    # Inform the user
+    echo -e "\n\tJob: ${JOB} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\n\tERROR! Job: ${JOB} unsuccessfully created. ABORT...\n"; ERROR
+fi
+# If the "sedfile" exists, remove it
+if [[ -e $SEDFILE ]];then rm $SEDFILE; fi
+
+# Check if the job exists:
+#  - if it exists
+if [[ -e $JOB ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} exists. Submitting to HPC queues...\n"
+#  - if it does not exist
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} does not exist. ABORT...\n"; ERROR
+fi
+# Submit the job to HPC queues, to split (unpack) the desired EXT file. The
+# "shyelab" SHYFEM's intrinsic routine is going to be used.
+qsub $JOB || OKKO=1
+# Check the outcome of the submission:
+#  - if all went OK
+if [[ OKKO -eq 0 ]]; then
+    # Inform the user and set an event
+    echo -e "\tJob: ${JOB} successfully submitted to HPC queues.\n"
+    ecflow_client --event=preproc_OK
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} unsuccessfully submitted to HPC queues. ABORT...\n"; ERROR
+fi
+
+# If the job exists, remove it
+if [[ -e $JOB ]];then rm $JOB; fi
+
+# Remove the symbolic link to the desired file to be splitted (unpacked),
+# informing the user
+rm $FILE2SPLIT
+echo -e "\n\tSymbolic link: ${FILE2SPLIT} removed.\n"
+
+# Check if the directory to be used to store splitted (unpacked) EXT files is
+# already existent, or not (it is provided in the initialisation file peculiar
+# to the given simulation):
+#  - if it already exists
+if [[ -e $SHY_EXT_DIR ]]; then
+    # Inform the user
+    echo -e "\n\tDirectory: ${SHY_EXT_DIR} already exists.\n"
+#  - if it does not exist
+else
+    # Inform the user and create it
+    echo -e "\n\tDirectory: ${SHY_EXT_DIR} does not exist. Creating it...\n"
+    mkdir $SHY_EXT_DIR || OKKO_mkdir=1
+    # Check the outcome of the creation of the directory:
+    #  - if all went OK
+    if [[ OKKO_mkdir -eq 0 ]]; then
+        # Inform the user
+        echo -e "\tDirectory: ${SHY_EXT_DIR} successfully created.\n"
+    #  - if something went KO
+    else
+        # Inform the user and abort
+        echo -e "\tERROR! Directory: ${SHY_EXT_DIR} unsuccessfully created. ABORT...\n"; ERROR
+    fi
+fi
+# Move all the content of the current directory to the desired directory,
+# informing the user
+mv * $SHY_EXT_DIR
+echo -e "\n\tDirectory: $(pwd) all content moved to ${SHY_EXT_DIR}.\n"
+# Move to the upper directory, informing the user
+echo -e "\n\tChange directory: moving to an upper level...\n"; cd ..
+echo -e "\tCurrent directory: $(pwd).\n"
+# Remove the working directory, informing the user
+sleep 3
+rm -r $work_dir
+echo -e "\n\tDirectory: ${work_dir} removed.\n"
+
+# ********************
+#  END OF MAIN SCRIPT
+# ********************
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

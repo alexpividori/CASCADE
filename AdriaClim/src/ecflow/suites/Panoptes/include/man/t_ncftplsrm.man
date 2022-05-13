@@ -1,0 +1,119 @@
+
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.2
+   Task manual last change:    Jul 16, 2019
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Check the existence of filres in the remote area by measn of FTP protocol
+   create a list in the local host and remove files in the remote host ac-
+   cording the criteria of age and file name
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   You must check the initialization  files concistency. There are two 
+   initialization files you have to look at: 
+
+     a) the suite initialization file, which is hosted in the root suite 
+        directory and its name is suite_name.ini
+   
+     b) the family initialization file, which is usually hosted in the etc 
+        directory of the suite repository (i.e. COAST/GNOME/etc/) and 
+        its name is including the suite defined variable %%PARAFAM%%, as example
+        some-name-params_4_%%PARAFAM%%.ini, where %%PARAFAM%% 
+        is the variable identifying the falily nodes group. 
+
+   The stdout of this task reports all the steps and the variables used to 
+   get its objective, so going through it you should be able to find why it
+   has failed.
+  
+   There are no automatic switches for the task in case of it fails to run.
+ 
+   EXTENDED TASK DESCRIPTION
+   The task performes the following actions:
+
+   1) it gets the suite defined variables:  
+         PARAFAM    --> the family identification string (e.g. 'PAC, DIAGQA_WEB')
+         FTP_CLEAN  --> the flag for clening the remote area before the upload 
+                        'n' = No cleaninga (not is allowed too)
+                        'y' = Cleaning (yes is allowed too)
+
+ 
+   2) it checks the existence of the the suite and family initialization files and 
+      then it reads the variables and the parameters required for file information
+      retrieval, i. e. user, passwd, area, etc. and file criteria removal i.e. age,
+      existence in a list file;
+
+   3) each file in the remote area is included in a list file with all the 
+      relevant informationi. The name of the list file is set in the family ini-
+      tialization file variable NCFTP_LSR_FOUT;
+
+   4) in case there are files to be removed, it attempts to remove them.
+      If not succesful, the node does not crashes, but reports the probolem in the
+      removal log file;
+
+   5) information on removal criteria may be stored as follow:
+        a) in the family initialization file the variable NCFTP_LSR_REMO stores the 
+           information to be applied to all the files in the remote area. Information 
+           are: file_name;max_file_age;max_file_size semicolon separated and in the
+           order they appera here.
+
+            file_name -->     it is a string used by menas of grep to identify the 
+                              files to remove
+            max_file_age -->  it is the max age allowed to files [seconds].
+                              If file_age (modification time) > max_file_age file
+                              is deleted
+            max_file_size --> it is the max size allowed to files [bytes].
+                              If file_size > max_file_size file is deleted
+            Criteria on age and size have to be both satisfied (logical and) to 
+            remove the file. Leave the field void to say no criterium has to be 
+            applied, i.e file_name is void means do not consider any file, max_file_age 
+            means do not consider any age, max_file_size means do not consider any size. 
+            If you set file_name to wild characted "*" then all files are going to be 
+            considered (WARNING).
+
+        b) If the field file_name of NCFTP_LSR_REMO variable is set to an existing 
+           file, then criteria are used according to those available in that file. 
+           So you can define different removal criteria for subseats of files by 
+           means of the criteria file, which is a YAML file. Here below is an example 
+           of the YAML format adopted for the purpose. 
+
+           #
+           # Template of each element in the sequesnce
+           # - [file_name, max_file_age, max_file_size]
+           # - [trial.txt,        86400,      10000000]
+           #
+           # Removal of old diagnostic air quality web files.
+           # Files older than 400 days and size greather than 100 MB will be removed 
+           # from remote server
+           - [datiKrigingUpTo_, 34560000,  10000000]
+
+            
+        c) If NCFTP_LSR_REMO variable is left or set to void non removal at all
+           is performed
+           
+   6) information on removal actions performed on files in the remote area are 
+      recorded in a file, which path is defined in the family initialization 
+      file by means of NCFTP_LSR_FLOG variable. A backup of the file is made each
+      time the node is run and the name of the file is the same with a time extension
+
+   Many other parameters are defined in the initialization files. Almost all of
+   then are written in the stdout at the beginning of this task execution, so 
+   you can read them in the stdout log file.
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it
+

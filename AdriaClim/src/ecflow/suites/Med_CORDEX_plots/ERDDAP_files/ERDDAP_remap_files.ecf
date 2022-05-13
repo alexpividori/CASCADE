@@ -1,0 +1,71 @@
+%manual
+%include <man/remap_files.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <qsub_4_bash.h>
+%include <etc/general_ERDDAP.ini>
+
+
+cd $tmp_dir_root
+
+GOON=0
+n_line=1
+
+while IFS=";" read   VariableName CMIP5ExperimentName link_suffix file_name_root Frequency StartTime EndTime
+do
+
+	if [[ ! -d $tmp_dir_root/remapped_files_${file_name_root}_${n_line} ]]; then
+             mkdir -p $tmp_dir_root/remapped_files_${file_name_root}_${n_line}   || ERROR
+             echo "Directory $tmp_dir_root/remapped_files_${file_name_root}_${n_line} has been created"
+        fi
+
+  input_dir="$tmp_dir_root/cutted_files_${file_name_root}_${n_line}"
+  output_dir="$tmp_dir_root/remapped_files_${file_name_root}_${n_line}"
+  n_files=$( ls $tmp_dir_root/cutted_files_${file_name_root}_${n_line} | wc -l )
+
+  file_list_array_n=$( mktemp file_list_toremap_XXX.txt ) # name of the temporary file
+  file_list_array="${tmp_dir_root}/${file_list_array_n}"
+  ls $input_dir > "${file_list_array}"
+
+  echo -e "\t\n The directory \"$output_dir\" will be filled with drops files right now."
+ chmod +r $file_list_array 
+# For every pre_initialization_file.txt line, the jobs are modified and launched
+
+#=============================================================================
+#chmod +r stderr
+#chmod +r stdout
+
+
+sed -e s/%%%%input_dir%%%%/${input_dir//\//\\/}/g    \
+    -e s/%%%%output_dir%%%%/${output_dir//\//\\/}/g  \
+    -e s/%%%%n_files%%%%/${n_files}/g                \
+    -e s/%%%%file_list_array%%%%/${file_list_array//\//\\/}/g     Med_CORDEX_remap_template.job    >   Med_CORDEX_remap_${n_line}.job
+
+  echo -e "\t\n The cut remap template has just been modified. It will be launched right now"
+  echo -e "\t\n The ${n_line}-th line of \"initialization_file_download.txt\" will be processed rigth now"
+
+        ecflow_qsub  Med_CORDEX_remap_${n_line}.job  & PID_remap_job=$!  # in this way the two jobs are launched at the same time
+	wait $PID_remap_job
+
+  if [[ $GOON -eq 0 ]] ; then
+     echo -e "\t The jobs \"Med_CORDEX_remap_${n_line}.job\" is just finished."
+  else
+     echo -e "\t ERROR: The job can't be submitted"
+  fi
+
+#chmod +r stderr
+#chmod +r stdout
+rm $file_list_array
+rm Med_CORDEX_remap_${n_line}.job || echo "I can't delete the job"
+
+(( n_line++ ))
+
+done < $init_dir/initialization_file_download.txt
+
+echo -e "\tThe task is now finished"
+
+%include <tail_4_bash.h>

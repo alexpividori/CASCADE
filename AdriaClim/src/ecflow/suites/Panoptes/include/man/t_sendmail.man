@@ -1,0 +1,127 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    Jan 12, 2017
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Send an e-mail to a list of addresses with a message and, if needed ann attachment.
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+
+   A sure failure arises when the email initialization file is not found
+   If you have set the %MAIL_NOTIFY%  string in the template initialization file name,
+   then be sure that the suite variable MAIL_NOTIFY has been set in the suite 
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   This node check the existence of file containing all the relevant iformation for    
+   the message preparation and to send it.              
+
+   The path to the needed file is generated through a template defined in the suite
+   initialization and, optionally, a suite variable. 
+
+   The required file is a YAML file and the mandatory information should be:
+
+   a) the list of addresses separated by comma or spaces;
+
+   b) the subject of the message. A string between quotes;
+
+   c) the body of the message.
+ 
+   Optional information are:
+
+   d) the list of addresses for CC. Addresses separated by comma or spaces;
+
+   e) the list of addresses for BCC. Addresses separated by comma or spaces;
+
+   f) the list of files to be attached to the message;                         
+
+   Here below is an example of the YAML file with mandatory and optional information.
+   It is the: BCIC_AQ-email-notify.yaml file for air quality forecasts
+#
+#
+#  Start of the file: BCIC_AQ-email-notify.yaml
+#
+#
+# This is the email notification file for Air Quality initial and boundary 
+# conditions availability check in the frame of ecFlow operationa suite: F_Air.
+#
+# by Dario B. Giaiotti
+# ARPA FVG - CRMA
+# email: dario.giaiotti@arpa.fvg.it
+#
+# created  on: Jan 12, 2017
+# modified on: Jan 12, 2017
+#
+#
+# The required file is a YAML file and the mandatory information should be:
+#
+#
+#   a) address_to   -->  the list of addresses separated by comma or spaces;
+#   b) subject_txt  -->  the subject of the message. A string between quotes;
+#   c) message_body -->  the body of the message. You can use the continuation
+#                        line character \ and all thye other echo -e recognized
+#                        sequences, that is:
+#
+#                         \\     backslash
+#                         \b     backspace
+#                         \c     produce no further output
+#                         \e     escape
+#                         \f     form feed
+#                         \n     new line
+#                         \r     carriage return
+#                         \t     horizontal tab
+#                         \v     vertical tab
+#                         \0NNN  byte with octal value NNN (1 to 3 digits)
+#                         \xHH   byte with hexadecimal value HH (1 to 2 digits)
+#
+
+# 
+# Optional information are:
+#
+#   d) address_cc   -->  the list of addresses for CC. Addresses separated by comma or spaces;
+#   e) address_bcc  -->  the list of addresses for BCC. Addresses separated by comma or spaces;
+#   f) attach_files -->  the list of files to be attached to the message;                         
+#
+#
+#
+address_to    : dario.giaiotti@arpa.fvg.it
+
+subject_txt   : F_Air suite message - late WARNING
+
+message_body  : \n\tThis e-mail just to inform that the initial and the boundary \n\
+                  \tconditions for Air Quality forecast today\n\n \
+                  \t$(date -u +%F"  at "%T) UTC\n\n\tare late.\n\n\
+                  \tPlease check what is going on\n\n\tBye bye,\n\tThe workflow manager\n
+
+address_cc    : 
+
+address_bcc   :
+
+attach_files  :
+
+#
+#
+# end of the file: BCIC_AQ-email-notify.yaml
+#
+#
+
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

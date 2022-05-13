@@ -1,0 +1,367 @@
+#%Module.4.7.1#####################################################################
+##
+## This is the ecFlow workflow manager module file 
+## Version 5.5.1   
+##
+## by Dario B. Giaiotti Mar 05, 2021
+##    ARPA FVG - CRMA 
+##    dario.giaiotti@arpa.fvg.it
+## 
+## This module supports all the activities required to run the ecFlow workflow
+## manager software. 
+## 
+##     https://software.ecmwf.int/wiki/display/ECFLOW/Home
+## 
+## This module create the environment suitable for the ecFlow
+## installation dedicated to AdriaClim, CASCADE and FIRESPILL INTERREG IT-HR
+## projects suites only!                      
+## 
+## It requires the system ecflow module that has been created by menas of 
+## spark. Go to the mods_pre list of prerequisite modules required by this 
+## module and change the system ecflow module path if you want to change 
+## the ecflow software version.
+## 
+## 
+##
+# Author                : Dario B. Giaiotti 
+# Created the           : Mar 05, 2021
+# Last modification by  : Dario B. Giaiotti
+# Last modification the : Mar 05, 2021             
+#
+#    Some help 
+#
+proc ModulesHelp { } {
+	global module_version
+
+	puts stderr "\t---------------------------------------------------"
+	puts stderr "\t           THIS IS THE ecFlow MODULE FILE          "
+	puts stderr "\t                                                   "
+	puts stderr "\t                   Version $module_version         "
+	puts stderr "\t                                                   "
+	puts stderr "\tThis module file will load the environment suitable"
+	puts stderr "\tto run the workflow manager software ecFlow.        "
+	puts stderr "\t(https://software.ecmwf.int/wiki/display/ECFLOW/Home)"
+	puts stderr "\tTo get help on ecFlow client and server, type:\n"
+	puts stderr "\t\tecflow_client --help                          "
+	puts stderr "\t\tecflow_server --help                          "
+	puts stderr "\n\tGood luck  \n\n "
+       
+        return 0
+}
+##
+##    Information starting load 
+## 
+proc  load_message { } {
+       global mod_name module_ext_name module_version purpose_of_module
+
+       puts stderr "\n\n\t The module: $mod_name is going to be loaded. \t "
+       puts stderr "\t Extended name: $module_ext_name \t "
+       puts stderr "\t Version: $module_version        \t "
+       puts stderr "\n\n\t Environment suitable for: $purpose_of_module\n"
+       puts stderr "\n "
+
+       return 0
+}
+##
+##    Information starting unload 
+## 
+proc  unload_message { } {
+       global mod_name module_ext_name module_version purpose_of_module    
+
+       puts stderr "\n\n\t The module: $mod_name is going to be unloaded. \t "
+       puts stderr "\t Extended name: $module_ext_name \t "
+       puts stderr "\t Version: $module_version        \t "
+       puts stderr "\n\n\t Environment suitable for: $purpose_of_module\n"
+       puts stderr "\n "
+
+       return 0
+}
+##
+##    Information to be added as default 
+## 
+proc  default_message { } {
+       global mod_name module_ext_name module_version ecf_host ecf_port purpose_of_module ecf_vers mod_sys_ecflow
+
+       puts stderr "\n\n\t Module: $mod_name \t "
+       puts stderr "\t Extended name: $module_ext_name \t "
+       puts stderr "\t Version: $module_version        \t "
+       puts stderr "\n "
+       puts stderr "\tSome, hopefully, useful information to use  $mod_name \n "
+       puts stderr "\tAll communication with the ecflow_server are done by means of ecflow_client\n\
+                    \tFor any communication with the server, the client needs to know the machine\n\
+                    \twhere the server is running and the port on the server. There can be multiple\n\
+                    \tservers running on the same machine, each with unique port numbers.\n"
+
+       puts stderr "\tThis module version requires the ecFlow installation environmental module:\n\n\
+                    \t\t $mod_sys_ecflow \n"
+
+       puts stderr "\tThe ecflow_client uses the following method of determining the host and port:\n\
+                    \t\t- Default host and port is localhost:3141\n\
+                    \t\t- These defaults are overridden by ECF_HOST and ECF_PORT environment variables\n\
+                    \n\t\t\t This module has set the followings:\n\t\t\t ECF_HOST=$ecf_host\n\t\t\t ECF_PORT=$ecf_port \n\n\
+                    \t\t- This can be further overridden by using port and host options\n\
+                    \t\t   and can be used for any of shell level command shown with help option.\n\n\
+                    \tRefer to the following sections to get information on how to start the server and\n\
+                    \thow to use the client.\n\n"
+
+       puts stderr "\n\n\t\t\t+----------------------------------------------------------------------+\n\
+                    \t\t\t|HOW TO CHECK WHETHER THE SERVER IS RUNNING AND HOW TO START THE SERVER|\n\
+                    \t\t\t+----------------------------------------------------------------------+\n\n\
+                    \tIn order to use ecFlow, first check whether the ecflow_server is running. \n\
+                    \tEexecute one of the following commands:\n\n\
+                    \t\tecflow_client --stats\n\n\
+                    \t\tecflow_client --ping --host=\$ECF_HOST --port \$ECF_PORT\n\n\
+                    \t\tnetstat -lnptv | grep ecflow  (only if server started with your user ID) \n\n\
+                    \tIf the message sent to stdout shows errors in connecting to the server and there is no\n\
+                    \tmention to:  Status RUNNING, then you need to start the ecflow_server.\n\
+                    \tOn a shared machine multiple users and ecFlow servers can coexist.\n\n\n\
+                    \t\t\t!!!!!! HOW TO START AND STOP THE SERVER !!!!!!\n\n\n\
+                    \tIf the server is not running, then start an ecflow_server : by typing the following\n\n\
+                    \t\tecflow-crma_start.sh  -d \$ECF_HOME -p \$ECF_PORT \n\n\
+                    \t\tecflow-crma_stop.sh   -p \$ECF_PORT \n\n\n\
+                    \t\t\t!!!!!! - - - - - - - - - - - - - - - - !!!!!!\n\n\n\
+                    \tThis will start an ecflow_server running on your system with a port number unique to your user ID.\n\
+                    \tWith this script ecFlow log files and check point  files are created in the directory \n\n\t\t\$HOME/ecflow_server.\n\n\
+                    \tThis can be changed by using:\n\n\
+                    \t\tecflow-crma_start.sh -d \$HOME/my_suite_directory_path\n\n\
+                    \tPlease refer to the server help to be aware of all the environmental variables and the\n\
+                    \tdefaults values used to start the server\n\n\
+                    \t\tecflow_server --help\n\n\
+                    \tKeep a note of the Host and Port given from your ecf_start.sh output for later.\n\
+                    \tThe host and port number uniquely identify your ecflow_server . \n\
+                    \tWhen you want to access this server using ecflow_client, client Server API or ecflowview \n\
+                    \tyou need to know these information. By setting the value of the environment variables ECF_HOST \n\
+                    \tand ECF_PORT you identify the server you wish to access. Remember that multiple ecflow_servers can run on \n\
+                    \tthe same system using different port numbers.\n\n\n"
+
+       puts stderr "\tThe ecflow-crma_start.sh script will automatically set up and start your ecflow_server.\n\
+                    \tTo start manually the server, you should identify the port to use, let's say NNNN, and\n\
+                    \tspecify it as follow:\n\n\
+                    \t\tecflow_server --port=NNNN\n\n\
+                    \tIf you started an ecFlow manually then your server will start in a halted state.\n\
+                    \tIn this case you will have to restart your server before you can use it.\n\
+                    \tIn a halted state the server will not schedule any tasks.\n"
+
+       puts stderr "\tTo check the status of the server, type the following at the unix prompt:\n\
+                    \n\t\tecflow_client --stats\n\n\
+                    \tExamine the output. If the ecflow_server is halted you would restart with:\n\
+                    \n\t\tecflow_client --restart\n\n"
+
+
+
+       puts stderr "\n\n\t\t\t\t+---------------------+\n\
+                    \t\t\t\t|HOW TO RUN YOUR SUITE|\n\
+                    \t\t\t\t+---------------------+\n\n\
+                    \tBy default ecFlow expects files to be in a directory structure below ECF_HOME\n\
+                    \tthat reflect the hierarchy of the suites (use ecflow_client --stats to get ECF_HOME)\n\n\
+                    \tA safe practice is to redefine the following environmental variables to avoid a \n\
+                    \tmess of files in your default ECF_HOME. You can do it at the beginning of the suite definition file\n\n\
+                    \t\t edit ECF_HOME      your-path-to-the-new-home   # Replace the path to your home directory \n\
+                    \t\t edit ECF_INCLUDE   your-path-to-the-include    # The include default directory            \n\
+                    \t\t edit ECF_FILES     your-path-to-the-scripts    # The task script file directory           \n\n\
+                    \tLet ecflow_server know about your suite or to load the suite definition file.\n\
+                    \tThis checks the file your-suite.def and describes the suite to the ecflow_server\n\
+                    \tFrom within the course directory do the following from the unix shell:\n\
+                    \n\t\tecflow_client --load=your-suite.def\n\n\
+                    \tThis will check and load the suite definition into the ecflow_server.\n\
+                    \tIf the check fails, the suite is not loaded.\n\
+                    \tIf you encounter errors associated with loading the suite twice, then you\n\
+                    \tcan delete all the suites in the server.\n\
+                    \n\t\tecflow_client --delete=_all_\n\n\
+                    \tThe definition can then be re-loaded.\n\
+                    \tAlternatively you can use replace a suite or any node, please\n\
+                    \ttype the following for help on replace. (ecflow_client --help replace)\n\n\
+                    \tOnce the ecflow_server is running you have to start the suite by typing:\n\
+                    \n\t\tecflow_client --begin your-suite \n\n\
+                    \tLet us now see how our suite ran, type the following:\n\
+                    \n\t\tecflow_client --get_state\n\n\
+                    \tTo retrieve the suite definition in a form that is parse-able, type:\n\
+                    \n\t\tecflow_client --get\n\n\
+                    \tYou can use the GUI to monitor the flow. Type:\n\
+                    \n\t\tecflowview   or  ecflow_ui\n\n\
+                    \tGood luck\n\n"
+ 
+       puts stderr "\n\n\tTo get help on ecFlow client and server, type:\n\n\t\tecflow_client --help\n\
+                    \t\tecflow_server --help \n\n"
+
+       puts stderr "\n\n\t+-------------------------------------------------------+\n\
+                    \t|          !!!!!     W A R N I N G     !!!!!            |\n\
+                    \t|\t\t\t\t\t\t\t|\n\
+                    \t| Environment suitable for: $purpose_of_module   |\n\
+                    \t|           ecFlow version: $ecf_vers                       |\n\
+                    \t|\t\t\t\t\t\t\t|\n\
+                    \t+-------------------------------------------------------+\n\n"
+
+       return 0
+}
+
+##
+##    Add the prerequisite lists modulefiles which must have been previously loaded
+##    before the current modulefile will be loaded.  If a list contains more than one
+##    modulefile, then each member of the list acts as a Boolean OR operation.  
+##    Multiple prereq and conflict commands may be used to create a Boolean AND operation.
+##
+proc  load_prereq  { } {
+      global mods_pre mod_name
+      puts stderr "\n\t---------------------------\n\tPrerequisete modules, if any, are going to be loaded\n"
+      foreach v $mods_pre { 
+             if [ is-loaded $v ] {
+	           puts stderr "\n\tPrerequisete module $v  already loaded. OK"
+	     } else {
+                   module load $v
+	           puts stderr "\n\tPrerequisite module $v is loaded right now \
+                                \n\tTake care when you unload this module because the prerequisite modules are left loaded!!! "
+                    }
+      }
+       puts stderr "\n\t---------------------------"
+       return 0
+}
+##
+##
+##
+##   ======= Variables and parameters here below =======
+##
+#    This is the module version
+     set     ecf_vers           5.5.1  
+     set     module_version	$ecf_vers 
+     set     project_name       AdriaClim
+
+#    This is the module extended name
+     set     module_ext_name 	"Project $project_name Workflow manager ecFlow"
+     set     purpose_of_module  "FOR $project_name SUITES ONLY"
+   
+#    Summary description for this module 
+     module-whatis   "Generate the environment suitable for: $module_ext_name (version $module_version)"
+     module-whatis   "For more info, type module show or help\n  "
+
+#    List of prerequisite modules required by this module (load their names in $mods_pre variable)
+#    Here you have to define the system ecFlow environmental module that allows you to use the ecFlow 
+#    software 
+#
+#     set     mod_sys_ecflow  "ecflow/$module_version" # Hopefully to be implemented to shorten the prereq name
+     set     mod_sys_ecflow  "ecflow/$module_version/gcc/8.2.0-jk4r75u"
+     set     mods_pre        "$mod_sys_ecflow"
+
+##    Conflict modulefiles which must have been previously unloaded
+##    before the current modulefile will be loaded.  If a list contains more than one
+##    modulefile, then each member of the list acts as a Boolean OR operation.  
+##    Multiple prereq and conflict commands may be used to create a Boolean AND operation.
+##
+      if  [ module-info mode load ]  {
+          if { [ is-loaded  oper_ecflow ] } {
+             puts stderr "\n\tA version of oper_ecflow module is already loaded."
+             puts stderr "\tYou have to unload the loaded version to load this module (version $module_version)\n"
+             exit 1
+          }
+
+         if { [ is-loaded devel_ecflow user_ecflow oper_ecflow ] } {
+            puts stderr "\n\tThere are conflicts with already loaded modules."
+            puts stderr "\tPlease see the following information that can help you.\n"
+            module list
+            puts stderr "\n-------------------------------------------------------\n"
+            exit 1
+         }
+      }
+
+##
+##    Load prerequiste modules if any 
+##
+##
+      if  [ module-info mode load ]  {
+              load_prereq
+      }
+
+#    These are the NODE, PORT and WHITELIST basic information required to run ecflow_server and ecflow_client
+#    ECF_HOME is also defined as default directory where to store logs and check point files
+#    ECF_NODE has been replaced with ECF_HOST. In future ecflow releases, ECF_NODE will be deprecated   
+     set     ecf_node        login        
+     set     ecf_host        $ecf_node  
+     set     ecf_port        2014             
+     set     ecf_home        /lustre/arpa/AdriaClim/ecflow_server/ 
+
+#    These are the bin, lib, log and etc  directories for ecFlow and the whitelist, check and logs file           
+     set     ecflow_root       /opt/arpa/apps/ecflow
+     set     ecflow_bin        $ecflow_root/bin
+     set     ecflow_lib        $ecflow_root/lib
+     set     ecflow_doc        $ecflow_root/doc
+     set     ecflow_share      $ecflow_root/share
+     set     ecflow_python     $ecflow_root/python
+     set     ecflow_whitelist  $ecf_home/$ecf_node.$ecf_port.ecf.list
+     set     ecflow_log        $ecf_home/$ecf_node.$ecf_port.ecf.log
+     set     ecflow_check      $ecf_home/$ecf_node.$ecf_port.ecf.check
+     set     ecflow_check_old  $ecf_home/$ecf_node.$ecf_port.ecf.check.b
+     set     ecflow_check_int  120 
+     set     ecflow_task_maxt  5000
+##
+##    Here below defive the environmental variables defined by this module 
+##   
+      setenv ECFLOW_DIR     "$ecflow_root"                 
+      setenv ECFLOW_VERSION "$module_version"
+##
+##    Environmental variables mandatory  required by ecFlow server                       
+##    ECF_NODE has been replaced with ECF_HOST. In future ecflow releases, ECF_NODE will be deprecated   
+#      setenv ECF_NODE           "$ecf_node"
+      setenv ECF_HOST           "$ecf_host"
+      setenv ECF_PORT           "$ecf_port"
+      setenv ECF_HOME           "$ecf_home"
+      setenv ECF_LOG            "$ecflow_log" 
+      setenv ECF_CHECK          "$ecflow_check"
+      setenv ECF_CHECKOLD       "$ecflow_check_old"
+      setenv ECF_CHECKINTERVAL  "$ecflow_check_int"
+      setenv ECF_LISTS          "$ecflow_whitelist"
+      setenv ECF_TASK_THRESHOLD "$ecflow_task_maxt"
+
+##
+##    Environmental variables defined by this module 
+##   
+      setenv OPERATIVE_ECFLOW_BIN          "$ecflow_bin"
+      setenv OPERATIVE_ECFLOW_LIB          "$ecflow_lib"
+      setenv OPERATIVE_ECFLOW_DOC          "$ecflow_doc"
+      setenv OPERATIVE_ECFLOW_SHARE        "$ecflow_share"
+      setenv OPERATIVE_ECFLOW_WHITELIST    "$ecflow_whitelist"
+##
+##
+##    Here below preappend  environmental variables defined by this module 
+##   
+## 
+##    PYTHONPATH      must be set to include the directory where the file ecflow.so has been installed
+##    LD_LIBRARY_PATH must be set to include the directory where libboost_python.so
+## 
+      prepend-path PATH            "$ecflow_bin"       
+      prepend-path PYTHONPATH      "$ecflow_python" 
+      prepend-path LD_LIBRARY_PATH "$ecflow_python" 
+
+##
+##   ======= Variables and parameters here above =======
+##
+## 
+## 
+##   ==================================================================================
+##   |                                                                                |
+##   ==================================================================================
+##
+##
+##
+##   +------  Parameters for autoconfiguration here below  ------+
+##   |        !!!        DO NOT EDIT THIS SECTION     !!!        |
+
+         set mod_name "[ module-info name ]"
+
+##   |        !!!        DO NOT EDIT THIS SECTION     !!!        |
+##   +------  Parameters for autoconfiguration here above  ------+
+##
+##
+##
+##    Load module now
+##
+##
+      if  [ module-info mode load ]  {
+              load_message        
+       } elseif [ module-info mode remove ] {
+              unload_message
+       } else {
+              default_message
+               }
+## 
+## END OF THIS MODULE FILE                                                 
+## 

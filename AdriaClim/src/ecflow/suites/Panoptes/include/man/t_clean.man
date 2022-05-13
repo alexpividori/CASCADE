@@ -1,0 +1,86 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.2
+   Task manual last change:    May 09, 2017
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Remove files and directories according to rules specifies in the
+   suite initializaion file
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   This node removes files and directories according to rules 
+   specifies in the suite initializaion file. 
+  
+   The removal tasks are defined by means of the DATA_CLN_ACT array.
+   Each element of the array is an removal task to be performed.
+   A task describes what actions should be taken on the files to be
+   Removed. Each parameter of the action is colon (;) separated.
+   
+   Here are the roules.
+
+      declare -a DATA_CLN_ACT             # This is the array of tasks
+                #       +---------------- Forced removal in case of not matching permissions
+                #       |                   a = y --> Force removal even if permissions do not allow
+                #       |                   a = n --> Do not force removal (default if not set)
+                #       |
+                #       | +-------------- Recoursive removal in case of directory. BE CAREFUL ALL FILES
+                #       | |                 BE CAREFUL ALL FILES WILL BE REMOVED REGARDLESS ANY OTHER CODITION
+                #       | |                 b = y --> Recoursive removal
+                #       | |                 b = n --> Do not remove recoursively subdirectories (default if not set)
+                #       | |
+                #       | | +------------ Minimum Age of the files or directory to be removed according the -mmin +n
+                #       | | |               option of find utility. File's data was last modified more than n minutes ago
+                #       | | |               The age is defined in minutes (integer); if not set, default is zero.
+                #       | | |
+                #       | | | +---------- Minimum size of the files or directory to be removed according the -size +nc
+                #       | | | |             option of find utility. File's having size greather than n bytes are removed
+                #       | | | |             The size is defined in bytes (integer); if not set, default is zero.
+                #       | | | |
+                #       | | | | +-------- Root directory where to start the search of files to be
+                #       | | | | |         removed. According to the find utility.
+                #       | | | | |
+                #       | | | | | +------ File[s] to be removed: wild characters are allowed and
+                #       | | | | | |       recursive search in subdirectories is the default, according find utility.
+                #       | | | | | |       Search starts from the root directory (R) parameter.
+                #       | | | | | |
+                #       | | | | | | +---- File[s] to be exluded from removal: wild characters are
+                #       | | | | | | |     allowed and recursive search in subdirectories is the default
+                #       | | | | | | |     Leave unfilled if no filter for exlusion should be applied
+                #       | | | | | | |
+      #DATA_CLN_ACT[0]="a;b;c;d;R;F;X"
+
+      LOCAL_FCD="${DATA_ARC_DATE:-$(date -u +%Y%m%d)}"  # In case run date is the current date use it to define the remal date
+      LOCAL_CRO="/lustre/arpa/operative/scratch/"       # Root dir for removal definition to avoid long strings in the array
+      DATA_CLN_MAX_AGE="40"
+
+      DATA_CLN_ACT[0]="y;n;;1000;${DATA_CLN_ROOT_DIR}../;${LOCAL_FCD};"
+      DATA_CLN_ACT[1]="n;y;1440;;${DATA_CLN_ROOT_DIR}../;201*;*_g1_*"
+      # First remove all files in the daily directory and subdirectories and then remode daily directory that is expected to be empty
+      DATA_CLN_ACT[2]="y;n;;;${DATA_CLN_ROOT_DIR}/../$(date -u -d "${LOCAL_FCD} ${DATA_CLN_MAX_AGE} days ago" +%Y%m%d)_00;*.*;"
+      DATA_CLN_ACT[3]="y;y;;;${DATA_CLN_ROOT_DIR}/../$(date -u -d "${LOCAL_FCD} ${DATA_CLN_MAX_AGE} days ago" +%Y%m%d)_00;*;"
+      # Second remove all files in the daily directory and subdirectories older than ${DATA_CLN_MAX_AGE}*1440 minutes
+      DATA_CLN_ACT[4]="y;y;$((${DATA_CLN_MAX_AGE}*1440));;${DATA_CLN_ROOT_DIR}/../2???????_00;*;"
+
+
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

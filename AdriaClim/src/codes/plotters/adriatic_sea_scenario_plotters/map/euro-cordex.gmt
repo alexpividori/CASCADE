@@ -1,0 +1,18 @@
+#!/bin/bash
+
+module load gmt/6.0.0/intel/19.1.1.217-clpimwl
+
+gmt begin 
+        gmt figure "euro-cordex" png  A+m0.5c
+        gmt set FONT_ANNOT_PRIMARY 8p
+        gmt set FONT_TITLE 15p
+        gmt set MAP_GRID_PEN_PRIMARY thinnest,black # -Bx+lcggc
+	gmt coast -R12.25/14.05/45.50/46.80 -B   -Wthinnest  -Slightblue  -N1/dashed -Df -JM4.5i \
+         -B+t"Analyzed geographical points" -Ggray
+# EURO-CORDEX  nodes
+        gmt plot @grid.csv  -:    -Wfaint    -S+0.18c   -Glightblue -l"EURO-CORDEX grid points"+s0.2
+#******** cities *********
+        gmt plot @cities.txt   -Wfaint    -Sc0.15c   -Gblack
+        gmt text @cities.txt   -F+f8p,Helvetica,black+jRT -D0.08c/-0.08c
+        gmt text @cities1.txt   -F+f8p,Helvetica,black+jLT -D0.08c/-0.08c
+gmt end 

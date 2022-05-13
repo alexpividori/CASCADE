@@ -1,0 +1,12 @@
+=============================================================
+               ERDDAP_set_dir   manual
+=============================================================
+
+This is the manual of the first task of the ERDDAP files download suite.
+
+The entire set of tasks (except for ERDDAP_curl_data.ecf) are very similar
+to the Med_CORDEX version. The only main difference is the formattation 
+of the initialization_file_download.txt. To see the differencies, please 
+consult the ERDDAP_curl_data.man
+Instead for all other tasks you can safely consulte the Med_CORDEX manual
+verisons.

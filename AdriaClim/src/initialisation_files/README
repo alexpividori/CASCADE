@@ -1,0 +1,12 @@
+# ***********************************************************************
+#  This is the repository of INTERRREG IT-HR AdriaClim project for
+#  initialisation file
+# ***********************************************************************
+
+# Directory content:
+#
+#  - the names of all the initialisation files contained in this
+#    directory start with "init_file_" and end with ".txt". The middle
+#    part of the name is specific to each file, and it is the same as
+#    the name of the related script (extension excluded).
+#    E.g. init_file_pciv_merge-rivers.txt <---> pciv_merge-rivers.py

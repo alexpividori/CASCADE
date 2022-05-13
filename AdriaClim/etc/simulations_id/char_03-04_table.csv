@@ -1,0 +1,16 @@
+# **********************************
+# * SIMULATIONS ID: CHARACTERS 3-4 *
+# **********************************
+# The table below defines the meaning of characters 3-4 in the alphanumeric
+# identification code, of the simulations already performed in the frame of the
+# AdriaClim INTERREG IT-HR project, by ARPA FVG (PP11).
+# It is worth to remind that characters 3-4 are reserved to the identification
+# number of the type of reality or simulated phenomenon, in the frame of the
+# project.
+# To know how to use this table, read the README file belonging to this
+# directory.
+# **********************************
+ID;Synthetic description;Comments
+95;Sea, hindcast;Hindcast run for the state of the sea
+96;Sea, forecast;Forecast run for the state of the sea
+97;Sea, climate scenario;Climate scenario for the state of the sea

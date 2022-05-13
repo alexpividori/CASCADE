@@ -1,0 +1,199 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at extracting the fields
+#                  contained in a NetCDF file (see the EXTERNAL FILES comment
+#                  section), at each "extra" (EXT) node of the specific
+#                  SHYFEM simulation.
+#                  The extraction, carried out through CDO (Climate Data
+#                  Operators), is performed by the use of a job script,
+#                  prepared from its related template, through a "sedfile"
+#                  (see the EXTERNAL CALLS comment section).
+#
+#  EXTERNAL CALLS: - job template aimed at extracting the fields contained in
+#                    a NetCDF file (see the EXTERNAL FILES comment section), at
+#                    each "extra" (EXT) node of the specific  SHYFEM
+#                    simulation. Extraction is carried out through CDO (Climate
+#                    Data Operators) and job arrays are employed (each job
+#                    array extracts one specific node).
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - function managing the PBS queue job submission;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - NetCDF file containing the results of the specific SHYFEM
+#                    simulation, for some fields, obtained from the conversion
+#                    of the related SHY file, through the "shyelab" SHYFEM's
+#                    intrinsic routine;
+#                  - STR file peculiar to the specific simulation;
+#                  - CSV file containing the correspondence between the SHY and
+#                    related NetCDF nodes' numbering (NetCDF files obtained
+#                    from SHY ones, through the "shyelab" SHYFEM's intrinsic
+#                    routine, are characterized by a different nodes' numbering
+#                    convention). This file is formatted as follows:
+#
+#                    # Some lines of metadata
+#                    SHY_node_1;NetCDF_node_ID-1
+#                    SHY_node_2;NetCDF_node_ID-2
+#                     ...
+#                    SHY_node_N;NetCDF_node_ID-N
+#
+#                     where
+#
+#                        SHY_node_i       = ID of i-th node in SHY files;
+#                        NetCDF_node_ID-i = ID of the node in NetCDF files
+#                                           corresponding to i-th node in the
+#                                           related SHY files.
+#
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-03-18.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include the function managing the PBS queue job submission
+%include <qsub_4_bash.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# **********************
+#  START OF MAIN SCRIPT
+# **********************
+
+# Define the name (relative path + basename) of the desired file to be
+# processed, by the use of a family variable
+FILE2PROC="../%FILE2PROC%"
+# Define the basename of a temporary file, aimed at containing the
+# correspondence between the SHY and related NetCDF nodes' numbering, without
+# metadata
+SHY_NETCDF_NODES_CFR_TMP=$(mktemp -u shy_netcdf_nodes_cfr.XXXXX)
+# Define the basename of a temporary file, aimed at containing the content of
+# the "$extra" section of the STR file peculiar to the specific simulation
+STR_FILE_EXTRA_TMP=$(mktemp -u str_file_extra.XXXXX)
+# Define the name of a temporary working directory
+WORKDIR_TMP=$(mktemp -u workdir_tmp.XXXXX)
+# Define the basename of the job to be used to process the desired file,
+# starting from that of its related template
+JOB="${JOB_NCEXTSEL_TPL##*/}"   # consider the basename only
+JOB="${JOB//.tpl/}"             # remove the ".tpl" extension
+
+# Define the default status (OKKO=0 -> all went OK; OKKO=1 -> something went
+# KO) for:
+#  - the submission of the desired job script
+OKKO=0
+#  - the creation of directories
+OKKO_mkdir=0
+
+# Inform the user about the current directory
+echo -e "\n\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Create the temporary working directory
+mkdir $WORKDIR_TMP || OKKO_mkdir=1
+# Check the outcome of the creation of the directory:
+#  - if all went OK
+if [[ $OKKO_mkdir -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tDirectory: ${WORKDIR_TMP} successfully created.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Directory: ${WORKDIR_TMP} unsuccessfully created. ABORT...\n"; ERROR
+fi
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${WORKDIR_TMP}..."; cd $WORKDIR_TMP
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Get the content of the file containing the correspondence between the SHY and
+# related NetCDF nodes' numbering, but deprived of metadata
+grep -v "^#" $SHY_NETCDF_NODES_CFR > $SHY_NETCDF_NODES_CFR_TMP
+
+# Get the content of the "$extra" section of the SHYFEM's STR file peculiar to
+# the specific simulation
+sed -n '/$extra/,/$end/{/$extra/b;/$end/b;p}' $SHY_STR_FILE_TPL > $STR_FILE_EXTRA_TMP
+# Get the number of nodes to extract
+JOB_ARRAY_INDEX_MAX=$(wc -l < "${STR_FILE_EXTRA_TMP}")
+
+# Create the job to be used to convert simulation outputs from SHY to NetCDF,
+# starting from its related template, by the use of a "sedfile"
+SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+cat <<EOF > $SEDFILE
+    s/%%%%JOB_P%%%%/$JOB_P/g
+    s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+    s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+    s/%%%%JOB_N%%%%/$JOB_NCEXTSEL_TPL_N/g
+    s/%%%%JOB_q%%%%/$JOB_q/g
+    s/%%%%JOB_l_nodes%%%%/$JOB_NCEXTSEL_TPL_l_nodes/g
+    s/%%%%JOB_l_ppn%%%%/$JOB_NCEXTSEL_TPL_l_ppn/g
+    s/%%%%JOB_l_walltime%%%%/$JOB_NCEXTSEL_TPL_l_walltime/g
+    s/%%%%JOB_m%%%%/$JOB_m/g
+    s/%%%%JOB_M%%%%/$JOB_M/g
+    s/%%%%CDO_MOD%%%%/${CDO_MOD//\//\\/}/g
+    s/%%%%FILE2PROC%%%%/${FILE2PROC//\//\\/}/g
+    s/%%%%SCRATCH_SIM_ID_NETCDF_DIR%%%%/${SCRATCH_SIM_ID_NETCDF_DIR//\//\\/}/g
+    s/%%%%SHY_NETCDF_NODES_CFR_TMP%%%%/$SHY_NETCDF_NODES_CFR_TMP/g
+    s/%%%%STR_FILE_EXTRA_TMP%%%%/$STR_FILE_EXTRA_TMP/g
+    s/%%%%JOB_ARRAY_INDEX_MAX%%%%/$JOB_ARRAY_INDEX_MAX/g
+EOF
+sed -f $SEDFILE $JOB_NCEXTSEL_TPL > $JOB
+# Check the outcome of the creation of the job and if the job itself exists:
+#  - if all went OK and the job exists
+if [[ $? -eq 0 ]] && [[ -e $JOB ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} successfully created. Submitting to HPC queues..."
+#  - if something went KO or the job does not exist
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} unsuccessfully created. ABORT..."; ERROR
+fi
+
+# Submit the desired job to HPC queues
+ecflow_qsub $JOB || OKKO=1
+
+# Check the outcome of the submission:
+#  - if all went OK
+if [[ $OKKO -eq 0 ]]; then
+    # Inform the user
+    echo -e "\tJob: ${JOB} successfully submitted to HPC queues.\n"
+#  - if something went KO
+else
+    # Inform the user and abort
+    echo -e "\tERROR! Job: ${JOB} unsuccessfully submitted to HPC queues. ABORT...\n"; ERROR
+fi
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to the upward directory..."; cd ../
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# If the temporary working directory exists
+if [[ -e $WORKDIR_TMP ]]; then
+    # Remove it and inform the user
+    rm -r $WORKDIR_TMP; echo -e "\tDirectory: ${WORKDIR_TMP} removed.\n"
+fi
+
+# ********************
+#  END OF MAIN SCRIPT
+# ********************
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

@@ -1,0 +1,578 @@
+%manual
+%include <man/general.man>                              # General manual for all task in this suite
+%include <man/t_archive.man>                            # Specific manual for this task
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks. 
+                                                        # It manages general calls to ecflow client
+
+
+%include <qsub_4_bash.h>                                # Include the function managing the jobs
+                                                        # submission to the queue
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+
+    echo -e "\n\n\t\tACHIVE FILES AS DEFINED IN THE INITIALIZATION FILE\n"
+    EXIT_STATUS=0   # set default exit status everything OK
+    WHOGET="%WHOGET:NULL%"           # Load the FAMILY variable 
+#
+# Check whether suite initialization file exists
+#
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE% not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE% found.\n"
+    fi
+#
+# Load suite initialization file 
+#
+    . %SUITE_INI_FILE% || EXIT_STATUS=1
+    if [[ $EXIT_STATUS -ne 0 ]];then echo -e "\n\n\tWARNING PROBLEMS IN THIS TASK - PLEASE CHECK \n\n";fi
+#
+# Check whether FAMILY initialization file exists
+#
+  FAMILY_INI_FILE="${BACKUP_INI_FILE}"   # Load the path of the Family initialization file 
+  FAMILY_INI_FILE="$(echo ${FAMILY_INI_FILE} | sed s/%%WHOGET%%/${WHOGET}/g)"
+  if [[ ! -e $FAMILY_INI_FILE ]]; then
+     echo -e "\n\tERROR!!!! FAMILY initialization file FAMILY_INI_FILE=${FAMILY_INI_FILE} not found!!!\n"
+     EXIT_STATUS=1 ; ERROR
+  else
+     echo -e "\tFAMILY initialization file FAMILY_INI_FILE=${FAMILY_INI_FILE} found.\n"
+  fi
+#
+# Load FAMILY initialization file and before replace the %%WHOGET%% suite variable by mmeans of sed
+#
+   FAMILY_INI_FILE_TMPFILE="$(mktemp -u ${GEN_WORK_DIR:-./}/%WHOGET%_inifile.XXXXX)"
+   sed s/%%WHOGET%%/${WHOGET}/g $FAMILY_INI_FILE > ${FAMILY_INI_FILE_TMPFILE}|| EXIT_STATUS=1
+    . $FAMILY_INI_FILE_TMPFILE || EXIT_STATUS=1
+   if [[ $EXIT_STATUS -ne 0 ]];then echo -e "\n\n\tWARNING PROBLEMS IN THIS TASK - PLEASE CHECK \n\n";fi
+   if [[ -e $FAMILY_INI_FILE_TMPFILE ]];then rm $FAMILY_INI_FILE_TMPFILE ;fi
+#
+# Some consistency check before to continue
+#
+  DATES="$(date -u +%%Y%%m%%d)"         # Define today                                              
+  if [[ "${BACKUP_DATE:=NULL}" != "${DATES}" ]];then
+     echo -e "\n\tWARNING CURDATE differs form DATES!!!!\n\t\tCURDATE="${BACKUP_DATE}"\n\t\tDATES=${DATES}\n"
+  else
+     echo -e "\n\tCURDATE equals DATES\n\t\tCURDATE="${BACKUP_DATE}"\n\t\tDATES=${DATES}\n"
+  fi 
+#
+# Move in the working directory
+#
+   if [[ ! -d ${BACKUP_WORK_DIR:=NULL} ]];then mkdir -p ${BACKUP_WORK_DIR} ; fi
+   cd ${BACKUP_WORK_DIR}
+   echo -e "\n\tI am currently working in the directory: $(pwd)"
+#
+#
+    #
+    #  +-----------------------------------------------------------------+
+    #  |    Load parameters useful for the whole node                    |
+    #  +-----------------------------------------------------------------+
+    #
+    BACKUP_HOME=${DATA_ARC_ROOT_DIR:-"./"}   # The root directory where to start the archival
+    declare -a BKA                           # This is the array with backup tasks
+    N=0; while [[ $N -lt ${#DATA_ARC_ACT[@]} ]]; do BKA[$N]="${DATA_ARC_ACT[$N]}" ;N=$(($N+1));done
+    #
+    #  +-----------------------------------------------------------------+
+    #  |    Set run date and run hour                                    |
+    #  +-----------------------------------------------------------------+
+    #
+    if [[ -z $DATA_ARC_DATE ]];then DATA_ARC_DATE="%ECF_DATE%"; fi    # Set run date as suite date if not set in the initialization file 
+    echo -e "\n\tRun date is set to: $DATA_ARC_DATE  (ecFlow environmental date is: %ECF_DATE%)"   
+    if [[ -z $DATA_ARC_HOUR ]];then DATA_ARC_HOUR="%ECF_TIME%"; fi    # Set run hour as suite time if not set in the initialization file 
+    echo -e "\tRun hour is set to: $DATA_ARC_HOUR  (ecFlow environmental date is: %ECF_TIME%)\n"   
+    #
+    #  +-----------------------------------------------------------------+
+    #  |     Create the temporary directory for messages preparation     |
+    #  +-----------------------------------------------------------------+
+    #
+    BACKUP_TMP_DIR="${BACKUP_HOME}/$(mktemp -u backup_dir.XXXXX)"    # Temporary directory for notification messages generation 
+    if [[ ! -d $BACKUP_TMP_DIR  ]];then mkdir -p $BACKUP_TMP_DIR;fi  # Create temporary directory for email messages preparation
+    echo -e "\tCreated temporary directory: $BACKUP_TMP_DIR"
+    cd $BACKUP_TMP_DIR
+    echo -e "\tCurrently I am in the temporary directory: $(pwd)"
+    
+    #
+    #
+    #  +-----------------------------------------------------------------+
+    #  |                                                                 |
+    #  |     Loop over the archival tasks and archive files              |
+    #  |                                                                 |
+    #  +-----------------------------------------------------------------+
+    #
+    #
+    DT_START=$(date -u +%%s)                                   # Get start time in seconds from epoch
+    echo -e "\n\tSTART Archival activity at: $(date -u +%%F' '%%T) UTC\n"
+    N=0 
+    while [[ $N -lt ${#BKA[@]} ]];do 
+          echo -e "\n\t+--------------------------------+"
+          echo -e "\t|\t Archival task: $N\t |"
+          echo -e "\t+--------------------------------+\n"
+          echo -e "\n\t  ==> ${BKA[$N]}"
+          #
+          #  +---------------------------------------------------------+
+          #  |     Get arguments to requirted to perform backup        |
+          #  +---------------------------------------------------------+
+          #
+          A="$(echo ${BKA[$N]} | cut -d ";" -f  1)";A=${A:-NULL} # Action to be taken
+          B="$(echo ${BKA[$N]} | cut -d ";" -f  2)";B=${B:-NULL} # Compression of the archive of archived file
+          C="$(echo ${BKA[$N]} | cut -d ";" -f  3)";C=${C:-NULL} # Remove original files after archival
+          D="$(echo ${BKA[$N]} | cut -d ";" -f  4)";D=${D:-NULL} # Add files to an existing archive or replace it
+          E="$(echo ${BKA[$N]} | cut -d ";" -f  5)";E=${E:-NULL} # Force file copy or leave uncopied file with the same name
+          R="$(echo ${BKA[$N]} | cut -d ";" -f  6)";R=${R:-NULL} # Root directory where to start the search of files to be archived
+          F="$(echo ${BKA[$N]} | cut -d ";" -f  7)";F=${F:-NULL} # File[s] to be archived
+          Z="$(echo ${BKA[$N]} | cut -d ";" -f  8)";Z=${Z:-NULL} # Destination archive 
+          X="$(echo ${BKA[$N]} | cut -d ";" -f  9)";X=${X:-NULL} # File[s] to be exluded from archive
+          P="$(echo ${BKA[$N]} | cut -d ";" -f 10)";P=${P:-NULL} # Access rights in octal to be set to the archived File[s]
+          
+
+          echo -e "\n\tDetails of this task are: \
+          \n\tA= Action to be taken   -----> \t\t\t\t\t$A \
+          \n\tB= Compression of the archive of archived file   -----> \t$B \
+          \n\tC= Remove original files after archival   -----> \t\t$C \
+          \n\tD= Add files to an existing archive or replace it   -----> \t$D \
+          \n\tE= Force file copy or leave uncopied file   -----> \t\t$E \
+          \n\tR= Root directory where to start the search of files    -----> $R \
+          \n\tF= File[s] to be archived   -----> \t\t\t\t$F \
+          \n\tZ= Destination archive    -----> \t\t\t\t$Z \
+          \n\tX= File[s] to be exluded from archive   -----> \t\t\t$X \
+          \n\tP= Access rights in octal for archive   -----> \t\t\t$P \n"
+
+          #
+          #  +---------------------------------------------------------+
+          #  |     Case of file copy to a directory                    |
+          #  +---------------------------------------------------------+
+          #
+          if [[ "${A}" == "cp" ]];then
+               echo -e "\n\tStart copying file into a directory\n"
+               FULL_LIST_FILE=$(mktemp -u full_list.XXXXX);  touch $FULL_LIST_FILE
+               EXLU_LIST_FILE=$(mktemp -u exlu_list.XXXXX);  touch $EXLU_LIST_FILE
+               TRUE_LIST_FILE=$(mktemp -u true_list.XXXXX);  touch $TRUE_LIST_FILE
+               GZIP_LIST_FILE=$(mktemp -u gzip_list.XXXXX);  touch $GZIP_LIST_FILE
+               #
+               # Create the file list to be considered for the transfer
+               #
+               FLAG_TO_GO=0
+               ls -1 ${R}/${F} > $FULL_LIST_FILE ||  FLAG_TO_GO=1
+               if [[ $FLAG_TO_GO -eq 1 ]]; then 
+                  echo -e "\tSome problems occurred during file selection; please check paths"
+                  echo -e "\tor look at FULL_LIST_FILE=$(pwd)/${FULL_LIST_FILE}"
+               else
+                  NFILES=$(cat ${FULL_LIST_FILE} | wc -l)
+                  echo -e "\tFile selection done.\n\tList available in file: $(pwd)/${FULL_LIST_FILE}"
+                  echo -e "\tNumber of selected files: ${NFILES}\n"
+               fi
+               #
+               # Create the file list to be exluded in the transfer
+               #
+               if [[ "${X}" != "NULL" ]];then  
+                  FLAG_TO_GO=0
+                  ls -1 ${R}/${X} > $EXLU_LIST_FILE ||  FLAG_TO_GO=1
+                  if [[ $FLAG_TO_GO -eq 1 ]]; then 
+                     echo -e "\tSome problems occurred during selection of files to be exluded; please check paths"
+                     echo -e "\tor look at EXLU_LIST_FILE=$(pwd)/${EXLU_LIST_FILE}"
+                  else
+                     NFILES=$(cat ${EXLU_LIST_FILE} | wc -l)
+                     echo -e "\tFile selection done.\n\tList available in file: $(pwd)/${EXLU_LIST_FILE}"
+                     echo -e "\tNumber of exluded files: ${NFILES}\n"
+                  fi
+               else
+                  echo -e "\tNo selection for file to be exluded.\n"
+               fi
+               #
+               # Create the file list with the files to be transferred only 
+               #
+               FLAG_TO_GO=0
+               grep -v -f $EXLU_LIST_FILE $FULL_LIST_FILE > $TRUE_LIST_FILE ||  FLAG_TO_GO=1
+               if [[ $FLAG_TO_GO -eq 1 ]]; then 
+                  echo -e "\tSome problems occurred during files list intesection please check. "
+                  echo -e "\tI tried: grep -v -f $EXLU_LIST_FILE $FULL_LIST_FILE > $TRUE_LIST_FILE"
+                  NFILES=0
+               else
+                  echo -e "\tCheck whether path are regular files. May be they are directories."
+                  touch ${TRUE_LIST_FILE}.tmp
+                  NFC=0
+                  while read FC; do 
+                        if [[ -f $FC ]];then 
+                           echo $FC >> ${TRUE_LIST_FILE}.tmp
+                        else
+                            echo -e "\tFile: $FC is not a regurlar file. It is exluded from the list!!!"
+                            NFC=$(($NFC + 1))
+                        fi 
+                  done < ${TRUE_LIST_FILE}
+                  mv ${TRUE_LIST_FILE}.tmp ${TRUE_LIST_FILE}
+
+                  echo -e "\n\tNumber of files removed from the file lists: $NFC"
+                  echo -e "\n\tFile lists intersection successfully done."
+                  echo -e "\tList available in file: $(pwd)/${TRUE_LIST_FILE}"
+                  NFILES=$(cat ${TRUE_LIST_FILE} | wc -l)
+                  echo -e "\tNumber of files to be copied are: ${NFILES}\n"
+               fi
+               #
+               # Check whether destination directory is available otherwise create it
+               #
+               if [[ "${Z}" != "NULL" ]];then  
+                  FLAG_TO_GO=0
+                  if [[ ! -d $Z ]]; then
+                     echo -e "\tDestination directory NOT available. It should be: $Z"
+                     echo -en "\tI am going to create it ...."
+                     mkdir -p $Z || FLAG_TO_GO=1
+                     if [[ $FLAG_TO_GO -eq 1 ]];then echo -en "\t... ERROR\n"; else echo -en "... OK\n";fi
+                  else
+                     echo -e "\tDestination directory already available. It is: $Z"
+                  fi 
+               else
+                  echo -e "\tWARNING! Destination directory is not defined!. It is: $Z\n"
+                  FLAG_TO_GO=1
+               fi 
+               #
+               # Copy files into the destination directory                      
+               #
+               if [[ $NFILES -gt 0 ]] && [[ $FLAG_TO_GO -eq 0 ]];then
+                  if [[ "${E}" == "y" ]];then FORCE="f";echo -e "\n\tForcing copy activated.\n"; else FORCE=" "; fi
+                  echo -e "\tArchive ready to start. GO.\n"
+                  while read FC; do 
+                        if [[ -e $FC  ]];then 
+                            cp -v${FORCE} $FC $Z | grep -v "^removed " | sed -e s/\'//g -e s/\`//g -e s/^/\\t/g | tee -a ${GZIP_LIST_FILE} 
+                        else
+                            echo -e "\tFile: $FC NOT available"
+                        fi 
+                  done < ${TRUE_LIST_FILE}
+                  #
+                  # Compress copied files if required 
+                  #
+                  if [[ "${B}" == "y" ]];then
+                     echo -e "\n\tCompression required. GO.\n"
+                     while read F; do  gzip -v${FORCE}  ${F##*>} 2>&1  | sed -e s/^/\\t/g ; done < ${GZIP_LIST_FILE}
+                  fi
+                  #
+                  # Change the permissions as required 
+                  #
+                  if [[ "${P}" != "NULL" ]];then
+                     echo -e "\n\tAccess permission change is required. GO.\n"
+                     while read F; do 
+                           FILE_TO_CHMOD="${F##*>}"
+                           if [[ "${B}" == "y" ]];then FILE_TO_CHMOD="${FILE_TO_CHMOD}.gz"; fi
+                           chmod -v ${P}  ${FILE_TO_CHMOD} 2>&1  | sed -e s/^/\\t/g  
+                     done < ${GZIP_LIST_FILE}
+                  fi
+                  #
+                  # Remove original files if required 
+                  #
+                  if [[ "${C}" == "y" ]];then
+                     NF=0; NFR=$NF
+                     echo -e "\n\tRemoval of original files is required. GO.\n"
+                     while read FF; do  
+                           NF=$(($NF+1))
+                           echo -e "\n\tProcessing removal: $NF"
+                           #
+                           # Before to remove check if file has been copied successfully
+                           #
+                           FLAG_TO_RM=0
+                           FC=$(grep $FF ${GZIP_LIST_FILE}); FCA=${FC%%->*}; FCB=${FC##*->}
+                           echo -e "\tFile: $FF"
+                           diff -sq $FCA $FCB > /dev/null  2>&1 ||  FLAG_TO_RM=1
+                           if [[ $FLAG_TO_RM -ne 0 ]];then
+                              echo -e "\tCopied file differes from the original!!!!!!! I DO NOT REMOVE THE ORIGINAL." 
+                              echo -e "\tLook at the differences:\n"
+                              stat  $FCA | sed s/^/\\t/g 
+                              echo -e  "\n\t===================================\n"
+                              stat  $FCB | sed s/^/\\t/g 
+                              echo -e  "\n\n"
+                           else
+                              echo -en "\tCopied file matches the original. I remove it; it seems safe ....."
+                              FILE_A_RIGHTS=$(stat -c %%a ${FF})
+                              echo -en " Access rights are: ${FILE_A_RIGHTS} ..."
+                              if [[ ${FILE_A_RIGHTS:0:1} -eq 6 ]];then  rm  ${FF} > /dev/null 2>&1 || FLAG_TO_RM=1; else FLAG_TO_RM=1; fi
+                              if [[ $FLAG_TO_RM -eq 0 ]];then echo -en " removed.\n";NFR=$(($NFR+1)); else echo -en " NOT removed.\n ";fi
+                           fi
+                      done < ${TRUE_LIST_FILE}
+                      echo -e "\n\n\tRemove files: $NFR - expected to be removed: $NF"
+                  fi
+               else
+                  echo -e "\n\n\tWARNING!!!!! No files to be copied on directory $Z is not available.\n"
+               fi
+          #
+          #  +---------------------------------------------------------+
+          #  |     Case of tar archive                                 |
+          #  +---------------------------------------------------------+
+          #
+          elif [[ "${A}" == "tar" ]];then 
+               #
+               #
+               #      +-------------------------------------------
+               #      |   File list preparation: START           |
+               #      +-------------------------------------------
+               #
+               #
+               echo -e "\n\tStart creating a tar archive\n"
+               FULL_LIST_FILE=$(mktemp -u full_list.XXXXX);  touch $FULL_LIST_FILE
+               EXLU_LIST_FILE=$(mktemp -u exlu_list.XXXXX);  touch $EXLU_LIST_FILE
+               TRUE_LIST_FILE=$(mktemp -u true_list.XXXXX);  touch $TRUE_LIST_FILE
+               GZIP_LIST_FILE=$(mktemp -u gzip_list.XXXXX);  touch $GZIP_LIST_FILE
+               ARCH_OPT="-v"                                                                             # Default archive options create and verbose
+               if [[ "${C}" == "y" ]];then FLAG_TO_REMOVE="--remove-files"; else  FLAG_TO_REMOVE=" "; fi # Activate option for file removal after archival 
+               #
+               # Create the file list to be considered for the transfer
+               #
+               FLAG_TO_GO=0
+               ls -1 ${R}/${F} > $FULL_LIST_FILE ||  FLAG_TO_GO=1
+               if [[ $FLAG_TO_GO -eq 1 ]]; then 
+                  echo -e "\tSome problems occurred during file selection; please check paths"
+                  echo -e "\tor look at FULL_LIST_FILE=$(pwd)/${FULL_LIST_FILE}"
+               else
+                  NFILES=$(cat ${FULL_LIST_FILE} | wc -l)
+                  echo -e "\tFile selection done.\n\tList available in file: $(pwd)/${FULL_LIST_FILE}"
+                  echo -e "\tNumber of selected files: ${NFILES}\n"
+               fi
+               #
+               # Create the file list to be exluded in the transfer
+               #
+               if [[ "${X}" != "NULL" ]];then  
+                  FLAG_TO_GO=0
+                  ls -1 ${R}/${X} > $EXLU_LIST_FILE ||  FLAG_TO_GO=1
+                  if [[ $FLAG_TO_GO -eq 1 ]]; then 
+                     echo -e "\tSome problems occurred during selection of files to be exluded; please check paths"
+                     echo -e "\tor look at EXLU_LIST_FILE=$(pwd)/${EXLU_LIST_FILE}"
+                  else
+                     XNFILES=$(cat ${EXLU_LIST_FILE} | wc -l)
+                     echo -e "\tFile selection done.\n\tList available in file: $(pwd)/${EXLU_LIST_FILE}"
+                     echo -e "\tNumber of exluded files: ${XNFILES}\n"
+                  fi
+               else
+                  echo -e "\tNo selection for file to be exluded.\n"
+               fi
+               #
+               # Create the file list with the files to be transferred only 
+               #
+               FLAG_TO_GO=0
+               grep -v -f $EXLU_LIST_FILE $FULL_LIST_FILE > $TRUE_LIST_FILE ||  FLAG_TO_GO=1
+               if [[ $FLAG_TO_GO -eq 1 ]]; then 
+                  echo -e "\tSome problems occurred during file list intesection please check. "
+                  echo -e "\tI tried: grep -v -f $EXLU_LIST_FILE $FULL_LIST_FILE > $TRUE_LIST_FILE"
+                  NFILES=$(grep -cv -f $EXLU_LIST_FILE $FULL_LIST_FILE 2> /dev/null) ||  NFILES="Impossible to count"
+                  echo -e "\tI got  NFILES=${NFILES}"
+                  NFILES=0
+               else
+                  echo -e "\tCheck whether path are regular files. May be they are directories."
+                  touch ${TRUE_LIST_FILE}.tmp
+                  NFC=0
+                  while read FC; do 
+                        if [[ -f $FC ]];then 
+                           echo $FC >> ${TRUE_LIST_FILE}.tmp
+                        else
+                            echo -e "\tFile: $FC is not a regurlar file. It is exluded from the list!!!"
+                            NFC=$(($NFC + 1))
+                        fi 
+                  done < ${TRUE_LIST_FILE}
+                  mv ${TRUE_LIST_FILE}.tmp ${TRUE_LIST_FILE}
+
+                  echo -e "\n\tNumber of files removed from the file lists: $NFC"
+                  echo -e "\n\tFile lists intersection successfully done."
+                  echo -e "\tList available in file: $(pwd)/${TRUE_LIST_FILE}"
+                  NFILES=$(cat ${TRUE_LIST_FILE} | wc -l)
+                  echo -e "\tNumber of files to be archived are: ${NFILES}\n"
+               fi
+               #
+               #
+               #      +-------------------------------------------
+               #      |   File list preparation: STOP            |
+               #      +-------------------------------------------
+               #
+               #
+               #
+               # Check whether archive name has been defined otherwise skip 
+               #
+               if [[ "${Z}" == "NULL" ]];then echo -e "\tWARNING! Destination archive is not defined!. It is: $Z\n";  FLAG_TO_GO=1;fi  
+               if [[ $FLAG_TO_GO -eq 0 ]];then
+                  #
+                  #
+                  #      +-------------------------------------------
+                  #      |             Case: New archive            |
+                  #      +-------------------------------------------
+                  #
+                  #
+                  if [[ "${D}" == "n" ]];then 
+                     echo -e "\n\tNew tar archive is going to be created."
+                     ARCH_OPT="${ARCH_OPT}c"                                                                     # Add tar option to create a new archive
+                     if  [[ "${B}" == "y" ]];then ARCH_OPT="${ARCH_OPT}z"; echo -e "\tCompressed - gzip"; fi     # Add tar option to archive with gzip compression
+                     #
+                     #   Check whether destination archive is available 
+                     #
+                     FLAG_TO_RM=0
+                     if [[ ! -e $Z ]]; then
+                         echo -e "\tDestination archive does NOT exist. \n\tIt is going to be created: $Z"
+                     else
+                         echo -e "\tDestination archive already available. It is: $Z \n\tIts properties are:\n"
+                         stat $Z | sed s/^/\\t\\t/g || echo -e "\n\tError in evaluating archive properties (stat failes)\n"
+                         FLAG_TO_RM=1
+                         #
+                         # Foreced removal is required, so I attempt to remove the already existing archive
+                         #
+                         if [[ "${E}" == "y" ]];then
+                            FLAG_TO_RM=0
+                            echo -en "\n\tForeced removal is required, so I attempt to remove the already existing archive ...."
+                            rm -f ${Z} > /dev/null 2>&1 || FLAG_TO_RM=1
+                            if [[ $FLAG_TO_RM -eq 0 ]];then echo -en " removed.\n"; else echo -en " NOT removed.\n ";fi
+                         fi
+                     fi 
+                     #
+                     #   Archive files into the destination archive tar file                      
+                     #
+                     if [[ $NFILES -gt 0 ]] && [[ $FLAG_TO_RM -eq 0 ]];then
+                        if [[ "${FLAG_TO_REMOVE}" == "--remove-files" ]];then echo -e "\tRemoval of original files is required.";fi
+                        echo -e "\tArchival ready to start. GO.\n"
+                        cat ${TRUE_LIST_FILE} |  sed s#//*#/#g |  sed -e s/${R//\//\\/}//g > $GZIP_LIST_FILE
+                        #
+                        # Create a new archive
+                        #
+                        tar ${ARCH_OPT}f $Z  $FLAG_TO_REMOVE -C ${R} -T $GZIP_LIST_FILE | sed s/^/\\t\\t/g
+                        if [[ -e $Z ]]; then 
+                           echo -e "\n\tArchive properties are:\n"; stat $Z | sed s/^/\\t\\t/g
+                           file -b $Z | sed s/^/\\t\\t/g || echo -e "\n\tError in evaluating archive properties (stat failes)\n"
+                           if [[ "${P}" != "NULL" ]];then
+                               echo -e "\n\tAccess permission change is required. GO.\n"
+                               chmod -v ${P}  ${Z} 2>&1  | sed -e s/^/\\t/g  
+                           fi
+                        else
+                           echo -e "\n\tWARNING!!!! Archive: $Z NOT AVAILABLE!!!\n"
+                        fi
+                     else
+                         echo -e "\n\tImpossible to continue the archival. Please check error messages, archival options or file number is zero."
+                     fi 
+                  #
+                  #
+                  #      +-------------------------------------------
+                  #      |       Case: add to an old archive        |
+                  #      +-------------------------------------------
+                  #
+                  #
+                  elif  [[ "${D}" == "y" ]];then
+                        echo -e "\n\tFiles are requested to be added to an already existing tar archive."
+                        if [[ ! -e $Z ]]; then              # Archive file is not available yet
+                           FLAG_TO_RM=0
+                           ARCH_OPT="${ARCH_OPT}c"                                                                 # Add tar option to create a new archive
+                           if  [[ "${B}" == "y" ]];then ARCH_OPT="${ARCH_OPT}z"; echo -e "\tCompressed - gzip"; fi # Add tar option to archive with gzip compression
+                           echo -e "\tDestination archive does NOT exist. \n\tIt is going to be created: $Z"
+                           #
+                           #   Archive files into the destination archive tar file                      
+                           #
+                           if [[ $NFILES -gt 0 ]] && [[ $FLAG_TO_RM -eq 0 ]];then
+                              if [[ "${FLAG_TO_REMOVE}" == "--remove-files" ]];then echo -e "\tRemoval of original files is required.";fi
+                              echo -e "\tArchival ready to start. GO.\n"
+                              cat ${TRUE_LIST_FILE} |  sed s#//*#/#g |  sed -e s/${R//\//\\/}//g > $GZIP_LIST_FILE
+                              #
+                              #       Create a new archive
+                              #
+                              tar ${ARCH_OPT}f $Z  $FLAG_TO_REMOVE -C ${R} -T $GZIP_LIST_FILE | sed s/^/\\t\\t/g
+                              if [[ -e $Z ]]; then 
+                                 echo -e "\n\tArchive properties are:\n"; stat $Z | sed s/^/\\t\\t/g
+                                 file -b $Z | sed s/^/\\t\\t/g || echo -e "\n\tError in evaluating archive properties (stat failes)\n"
+                                 if [[ "${P}" != "NULL" ]];then
+                                    echo -e "\n\tAccess permission change is required. GO.\n"
+                                    chmod -v ${P}  ${Z} 2>&1  | sed -e s/^/\\t/g  
+                                 fi
+                              else
+                                 echo -e "\n\tWARNING!!!! Archive: $Z NOT AVAILABLE!!!\n"
+                              fi
+                           else
+                               echo -e "\n\tImpossible to continue the archival. Please check error messages, archival options or file number is zero."
+                           fi 
+                        else              # Archive file is already available 
+                           ARCH_OPT="${ARCH_OPT}r"                                                                # Add tar option to append files           
+                           echo -e "\tDestination archive already available. It is: $Z \n\tIts properties are:\n"
+                           stat $Z | sed s/^/\\t\\t/g || echo -e "\n\tError in evaluating archive properties (stat failes)\n"
+                           file -b $Z | sed s/^/\\t\\t/g || echo -e "\n\tError in evaluating archive properties (stat failes)\n"
+                           FILE_A_RIGHTS=$(stat -c %%a ${Z})
+                           echo -en "\n\tAccess rights are: ${FILE_A_RIGHTS} ..."
+                           if [[ ${FILE_A_RIGHTS:0:1} -eq 6 ]];then  FLAG_TO_RM=0; else FLAG_TO_RM=1; fi
+                           if [[ $FLAG_TO_RM -eq 0 ]];then echo -en " not protected to write access.\n"; else echo -en " PROTECTED  to write access.\n ";fi
+                           #
+                           # Foreced removal is required, so I attempt to remove the already existing archive
+                           #
+                           if [[ "${E}" == "y" ]];then
+                              FLAG_TO_RM=0
+                              echo -e "\n\tForeced append is required, so I attempt to append files to the already existing archive ...."
+                              chmod 0644 $Z || FLAG_TO_RM=1
+                           fi
+                           #
+                           #   Archive files into the destination archive tar file                      
+                           #
+                           if [[ $NFILES -gt 0 ]] && [[ $FLAG_TO_RM -eq 0 ]];then
+                              if [[ "${FLAG_TO_REMOVE}" == "--remove-files" ]];then echo -e "\tRemoval of original files is required.";fi
+                              FLAG_COMPRESSED=0; gzip -t $Z > /dev/null 2>&1 ||  FLAG_COMPRESSED=1
+                              if [[ $FLAG_COMPRESSED -eq 0 ]]; then  echo -e "\tAlready existing archive is gzip compressed.";fi
+                              echo -e "\tArchival ready to start. GO.\n"
+                              cat ${TRUE_LIST_FILE} |  sed s#//*#/#g |  sed -e s/${R//\//\\/}//g > $GZIP_LIST_FILE
+                              #
+                              #       Add to the atready existing compressed archive 
+                              #
+                              if [[ $FLAG_COMPRESSED -eq 0 ]];then
+                                  echo -en "\tDecompression of archive ....."
+                                  gzip -fdc $Z >  ${Z}.uncopress  2>/dev/null ||  echo -e "\n\tError in decompressing archive\n" 
+                                  echo -en "\tdone.\n"
+                                  echo -e "\tAppend to existing archive ....."
+                                  tar ${ARCH_OPT}f  ${Z}.uncopress  $FLAG_TO_REMOVE -C ${R} -T $GZIP_LIST_FILE | sed s/^/\\t\\t/g
+                                  echo -e "\tAppend done."
+                                  echo -en "\tCompression of archive ....."
+                                  gzip -cfv ${Z}.uncopress > ${Z}   2>/dev/null ||  echo -e "\n\tError in decompressing archive\n" 
+                                  echo -en "\tdone.\n"
+                                  rm -f ${Z}.uncopress ||  echo -e "\n\tError in removing temporary archive ${Z}.uncopress\n"
+                              else 
+                              #
+                              #       Add to the atready existing NOT compressed archive 
+                              #
+                                  tar ${ARCH_OPT}f $Z  $FLAG_TO_REMOVE -C ${R} -T $GZIP_LIST_FILE | sed s/^/\\t\\t/g
+                              fi
+                              #
+                              #       Check archive consistency and change permissions if requested
+                              #
+                              if [[ -e $Z ]]; then 
+                                 echo -e "\n\tArchive properties are:\n"; stat $Z | sed s/^/\\t\\t/g
+                                 file -b $Z | sed s/^/\\t\\t/g || echo -e "\n\tError in evaluating archive properties (stat failes)\n"
+                                 if [[ "${P}" != "NULL" ]];then
+                                    echo -e "\n\tAccess permission change is required. GO.\n"
+                                    chmod -v ${P}  ${Z} 2>&1  | sed -e s/^/\\t/g  
+                                 fi
+                              else
+                                 echo -e "\n\tWARNING!!!! Archive: $Z NOT AVAILABLE!!!\n"
+                              fi
+                           else
+                               echo -e "\n\tImpossible to continue the archival. Please check error messages, archival options or file number is zero."
+                           fi 
+                        fi 
+                  else
+                     echo -e "\n\n\tWARNING!!!!! No files to be stored in the archive $Z. Please check why!!!!!!!!\n"
+                  fi
+               fi 
+          #
+          #
+          #  +---------------------------------------------------------+
+          #  |     Case of request not acceptable                      |
+          #  +---------------------------------------------------------+
+          #
+          else
+               echo -e "\n\n\tWARNING!!! This option: $A for Action to be take (a) is not allowed.\n\n"
+          fi 
+          N=$(($N+1))
+    done
+    
+
+    #
+    #  +-----------------------------------------------------------------+
+    #  |     Remove the temporary directory for messages preparation     |
+    #  +-----------------------------------------------------------------+
+    #
+    echo -e "\n\n\tSTOP Archival activity at: $(date -u +%%F' '%%T) UTC\n"
+    DT_STOP=$(date -u +%%s)                                   # Get end time in seconds from epoch
+    echo -e "\tArchival activity completed in: $(($DT_STOP - $DT_START)) seconds\n\n"
+    if [[ -d $BACKUP_TMP_DIR  ]];then rm -Rv $BACKUP_TMP_DIR | sed -e s/^/\\t/g ;fi  # Remove temporary directory for email messages preparation
+  
+    EXIT_STATUS=$?
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks. 
+                                       # It manages general calls to ecflow client

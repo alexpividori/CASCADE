@@ -1,0 +1,17 @@
+==========================================================================
+                           remap_files manual
+==========================================================================
+
+Remap files task is used to regrid the downloaded netCDF files. These files
+differentiate from the domain that indicates the resolution grid used.
+To perfectionate out goals and to allow many files operations, it is 
+necessary to have the entire files domain remapped on the same grid.
+
+To perform this I created the remap_files.ecf task that using cdo tools 
+and grid.txt initialization file, it performs a regular remap operation
+using a resolution of 0.06x0.06 degrees. 
+
+The practical working process is similar to the cut_files.ecf task.
+A template array job is modified and then launched. The output files 
+are saved inside remapped_files_${GCMModelName}_${CMIP5ExperimentName}_${VariableName} 
+temporary directory and the file names are changed by the 'remap_' prefix.

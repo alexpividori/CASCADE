@@ -1,0 +1,54 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at writing a "0" in the run
+#                  status file (see the EXTERNAL FILES comment section), to
+#                  inform that the simulation started.
+#                  It is a trick to overcome "ecFlow" issues with loops and in
+#                  sharing information between distinct nodes (tasks).
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - run status file: ASCII file containing only one digit (0
+#                    when the run started, 1 when the run ended);
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-12.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Write a "0" in the run status file to inform that the simulation started
+echo -e "\tSHYFEM run: started. Mark it in file ${RUN_STATUS_FILENAME}."
+echo 0 > $RUN_STATUS_FILENAME
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

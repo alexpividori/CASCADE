@@ -1,0 +1,212 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at processing FEM (.fem) files
+#                  containing not perturbed boundary conditions for sea
+#                  temperature, salinity and water level, by summing - for
+#                  each month - an addend to each field, which is field- and
+#                  month-specific (that is, for each month - 01, 02, ..., 12
+#                  - and for each field - T, S and Z - a "delta" is provided).
+#                  "Deltas" (addends) are retrieved in an ASCII file (see the
+#                  EXTERNAL FILES comment section).
+#                  Processing of boundary conditions is carried out by the use
+#                  of a job, prepared from its related template, through a
+#                  "sedfile" (see the EXTERNAL CALLS comment section).
+#
+#  EXTERNAL CALLS: - job template aimed at processing FEM (.fem) files
+#                    containing not perturbed boundary conditions for sea
+#                    temperature, salinity and water level, by summing - for
+#                    each month - an addend to each field, which is field- and
+#                    month-specific (that is, for each month - 01, 02, ..., 12
+#                    - and for each field - T, S and Z - a "delta" is
+#                    provided). "Deltas" (addends) are retrieved in an ASCII
+#                    file (see the EXTERNAL FILES comment section).
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - function managing the PBS queue job submission;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - ASCII file containing water level, salinity and sea
+#                    temperature's monthly "deltas" (variations with respect to
+#                    a reference), for a certain scenario, decade, geographic
+#                    point and statistical estimator (mean or median). This
+#                    file is characterized by metadata (lines starting with the
+#                    "#" character) and it is arranged in 4 columns, as shown
+#                    below:
+#
+#                    # Some lines of metadata
+#                    # Month;delta T [°C];delta S [PSU];delta z [m]
+#                    01;deltaT_01;deltaS_01;deltaZ_01
+#                    02;deltaT_02;deltaS_02;deltaZ_02
+#                    ...
+#                    12;deltaT_12;deltaS_12;deltaZ_12
+#
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-03-11.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include the function managing the PBS queue job submission
+%include <qsub_4_bash.h>
+# Include a specific initialisation file, peculiar to the given simulation. The
+# basename (extension excluded) of this initialisation file is provided by a
+# family variable
+%include <etc/%SIM%.ini>
+
+#  --- START OF FUNCTIONS ---
+
+# Remove the given file, if existent
+rm_file () {
+    # If the file provided to the function exists
+   if [[ -e $1 ]]; then
+       # Remove it and inform the user
+       rm $1; echo -e "\tFile: $1 removed.\n"
+   fi
+}
+
+# Remove the given job, if existent
+rm_job () {
+    # If the job provided to the function exists
+    if [[ -e $1 ]]; then
+        # Remove it and inform the user
+        rm $1; echo -e "\tJob: $1 removed.\n"
+    fi
+}
+
+# Check the outcome of the creation of the job and if the job itself exists
+check_mkjob () {
+    # Check the outcome of the creation of the job and if the job itself exists
+    #  - if all went OK and the job exists
+    if [[ $OKKO -eq 0 ]] && [[ -e $1 ]]; then
+        # Inform the user
+        echo -e "\tJob: $1 successfully created. Ready to be submitted to HPC queues...\n"
+    #  - if something went KO or the job does not exist
+    else
+        # Inform the user and abort
+        echo -e "\tERROR! Job: $1 unsuccessfully created. ABORT..."; ERROR
+    fi
+}
+
+# Check the outcome of the submission of the job
+check_jobsub () {
+    # Check the outcome of the submission:
+    #  - if all went OK
+    if [[ $OKKO -eq 0 ]]; then
+        # Inform the user
+        echo -e "\tJob: $1 successfully submitted to HPC queues.\n"
+    #  - if something went KO
+    else
+        # Inform the user and abort
+        echo -e "\tERROR! Job: $1 unsuccessfully submitted to HPC queues. ABORT..."; ERROR
+    fi
+}
+
+#  --- END OF FUNCTIONS ---
+
+# Define the default status (OKKO=0 -> all went OK; OKKO=1 -> something went
+# KO) for:
+#  - creating and submitting the desired job script
+OKKO=0
+#  - creating directories
+OKKO_mkdir=0
+
+# Define the basename of the job to be used for processing FEM files containing
+# not perturbed boundary conditions, starting from that of its related template
+# (provided in the initialisation file peculiar to the given simulation)
+JOB="${JOB_BCPROC_TPL##*/}"   # consider the basename only
+JOB="${JOB//.tpl/}"           # remove the ".tpl" extension
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# If the file containing water level, salinity and sea temperature's monthly
+# "deltas" is not provided (empty string; not perturbed boundary conditions are
+# going to be considered)
+if [[ -z $BC_DELTAS_FILE_TSZ ]]; then
+    # Inform the user and exit
+    echo -e "\n\tWARNING! 'Deltas' file: not provided. Not perturbed boundary conditions are going to be considered.\n"
+# If the file containing water level, salinity and sea temperature's monthly
+# "deltas" is provided (a perturbed simulation is going to be run)
+else
+    # If the file containing water level, salinity and sea temperature's monthly
+    # "deltas" does not exist
+    if [[ ! -f $BC_DELTAS_FILE_TSZ ]]; then
+        # Inform the user and abort
+        echo -e "\n\tERROR! File: ${BC_DELTAS_FILE_TSZ} does not exist. Please check. ABORT...\n"; ERROR
+    fi
+
+    # Get the number of months for which "deltas" are provided, by knowing that the
+    # file containing them is arranged in twelve lines (one for each month), plus
+    # other lines of metadata (starting with the "#" character)
+    months2proc=$(grep -v "^#" ${BC_DELTAS_FILE_TSZ} | wc -l)
+    # If the number of months for which deltas are provided is different from
+    # twelve
+    if [[ $months2proc -ne 12 ]]; then
+        # Inform the user and abort (the number of months for which "deltas" are
+        # provided has to be equal to 12)
+        echo -e "\n\tERROR! Number of months in file ${BC_DELTAS_FILE_TSZ} is ${months2proc}; expected 12. ABORT...\n"; ERROR
+    fi
+
+    # Create the desired job, starting from its related template, by the use of a
+    # "sedfile"
+    SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+    cat <<EOF > $SEDFILE
+        s/%%%%JOB_P%%%%/$JOB_P/g
+        s/%%%%JOB_W_umask%%%%/$JOB_W_umask/g
+        s/%%%%JOB_W_block%%%%/$JOB_W_block/g
+        s/%%%%JOB_N%%%%/$JOB_BCPROC_TPL_N/g
+        s/%%%%JOB_o%%%%/$JOB_BCPROC_TPL_o/g
+        s/%%%%JOB_e%%%%/$JOB_BCPROC_TPL_e/g
+        s/%%%%JOB_q%%%%/$JOB_q/g
+        s/%%%%JOB_l_nodes%%%%/$JOB_BCPROC_TPL_l_nodes/g
+        s/%%%%JOB_l_ppn%%%%/$JOB_BCPROC_TPL_l_ppn/g
+        s/%%%%JOB_l_walltime%%%%/$JOB_BCPROC_TPL_l_walltime/g
+        s/%%%%JOB_m%%%%/$JOB_m/g
+        s/%%%%JOB_M%%%%/$JOB_M/g
+        s/%%%%SHY_ITANF%%%%/$SHY_ITANF/g
+        s/%%%%SHY_ITEND%%%%/$SHY_ITEND/g
+        s/%%%%SHY_MOD%%%%/${SHY_MOD//\//\\/}/g
+        s/%%%%BC_DELTAS_FILE_TSZ%%%%/${BC_DELTAS_FILE_TSZ//\//\\/}/g
+        s/%%%%SHY_BC_FILE_Z%%%%/${SHY_BC_FILE_Z//\//\\/}/g
+        s/%%%%SHY_BC_FILE_Z_PERT%%%%/${SHY_BC_FILE_Z_PERT//\//\\/}/g
+        s/%%%%SHY_BC_FILE_S%%%%/${SHY_BC_FILE_S//\//\\/}/g
+        s/%%%%SHY_BC_FILE_S_PERT%%%%/${SHY_BC_FILE_S_PERT//\//\\/}/g
+        s/%%%%SHY_BC_FILE_T%%%%/${SHY_BC_FILE_T//\//\\/}/g
+        s/%%%%SHY_BC_FILE_T_PERT%%%%/${SHY_BC_FILE_T_PERT//\//\\/}/g
+        s/%%%%SCRATCH_SIM_ID_INPUT_ADRI_DIR%%%%/${SCRATCH_SIM_ID_INPUT_ADRI_DIR//\//\\/}/g
+EOF
+    sed -f $SEDFILE $JOB_BCPROC_TPL > $JOB || OKKO=1
+    # Function calling: check the outcome of the creation of the job and if the job
+    # itself exists
+    check_mkjob "${JOB}"
+    # Function calling: remove the "sedfile", if existent
+    rm_file "${SEDFILE}"
+
+    # Submit the job to HPC queues
+    ecflow_qsub $JOB || OKKO=1
+    # Function calling: check the outcome of the submission of the job
+    check_jobsub "${JOB}"
+    # Function calling: remove the job, if existent
+    rm_job "${JOB}"
+fi
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

@@ -1,0 +1,79 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at editing the HTML file that
+#                  defines the skeleton of the web page showing "spy"
+#                  (monitoring) products, for the specific simulation.
+#                  Specifically, the HTML block (i.e. set of HTML lines)
+#                  defining a table row with few columns, dedicated to the
+#                  products of the specific simulation, is removed from the
+#                  HTML file.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-19.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# Define the name (full path) of the HTML file that defines the skeleton of
+# the web page aimed at showing "spy" products
+spy_html_file="${PUB_HTML_SHY_SPY_DIR}/${SPY_HTML_FILENAME}"
+# Define the basename of a temporary file in which copying the HTML file
+spy_html_filename_tmp=$(mktemp -u html_tmp.XXXXX)
+# Define the pattern of the top line of the HTML block to be removed (a
+# family variable is employed)
+pattern_2_find="<!-- ${SHY_SIM_ID} -->"
+# Define the number of lines of the HTML block (top line excluded)
+N_block=12
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Check the existence of the HTML file:
+#  - if it exists
+if [[ -e $spy_html_file ]]; then
+    # Inform the user
+    echo -e "\tFile: ${spy_html_file} exists.\n"
+#  - if it does not exist
+else
+    # Inform the user and exit
+    echo -e "\tFile: ${$spy_html_file} does not exist. Please check.\n"; exit
+fi
+
+# Remove the HTML block from the HTML temporary file and inform the user
+sed -e "/${pattern_2_find}/,+${N_block}d" $spy_html_file > $spy_html_filename_tmp; echo -e "\tFile: ${spy_html_filename_tmp} successfully created."
+
+# Replace the HTML file with the temporary one (i.e. with the HTML file itself,
+# minus the desired HTML block), and inform the user
+mv $spy_html_filename_tmp $spy_html_file; echo -e "\tFile: ${spy_html_filename_tmp} moved to ${spy_html_file}.\n"
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

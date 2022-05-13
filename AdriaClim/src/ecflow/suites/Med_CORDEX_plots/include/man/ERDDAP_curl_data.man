@@ -1,0 +1,76 @@
+==================================================================
+                    ERDDAP_curl_data.ecf manual 
+==================================================================
+
+This task is similar to wget_data_Med_CORDEX.ecf. The aim of this 
+code is to download a set of netCDF files from 
+http://erddap.cmcc-opa.eu/erddap/index.html  official site.
+
+The file name formattation, the cdo operations and the command
+used for downloading is different, so I preferred to create a 
+new set of tasks for ERDDAP download. This task is one of the
+more important one because differs more than the others from 
+the old Med_CORDEX versions.
+
+In this case is available only the automatic version, not the manual
+one because in ERDDAP site all dataset are constructed in the same 
+way.
+
+The initialization_file_download.txt is constructed in a different way,
+in particular the key-words used for the file download are different.
+The structure is the following:
+
+VariableName;CMIP5ExperimentName;link_suffix;file_name_root;Frequency;StartTime;EndTime
+
+- VariableName must have the ERDDAP nomenclature: sosaline, sossheig, sosstsst or multi
+Multi is used if the file downloaded contains a big set of different field. It is true
+for sea surface salinity, sea surface temperature etc etc. VariableName is also 
+is uset to be inserted in the downloaded output file name 
+
+- CMIP5ExperimentName can be historical or projection/rcp26/rcp45/rcp85
+and is uset to be inserted in the downloaded output file name.
+
+- link_suffix is the last part of the link used for the download. It's the 
+link part that changes. It follows files/ and precede /time_file. 
+For example in the following link:
+
+ http://erddap-adriaclim.cmcc-opa.eu/erddap/files/medcordex_ocean_projections_sosstsst_day/2035/MED8_1d_2D_new.nc.2035
+
+ the link_suffix is 'medcordex_ocean_projections_sosstsst_day'. 
+ IMPORTANT: remember, to download files, the constant link part must be
+ privated by '-adriaclim' part. 
+ So, the fixed part http://erddap-adriaclim.cmcc-opa.eu/erddap/files/ must be replaced by:
+ http://erddap.cmcc-opa.eu/erddap/files/
+
+- file_name_root is the ERDDAP file name that doesn't depend on the year. For example
+'MED8_1d_2D_new.nc.2035' file name have 'MED8_1d_2D_new' string like file_name_root.
+The entire file name can be read directly in ERDDAP file. Remember to don't include 
+the extenzion .nc on the 'file_name_root'.
+
+- Frequency is the time step of the downloaded file. it can be monthly, daily or annual.
+Respectively you should write mon day and year.
+The frequency is useful to take the time average in case in which the files are daily.
+
+- StartTime is the year from which you wanna start download files. Write the year only.
+
+- EndTime is the last year file you wanna download. In ERDDAP all single files cover a 
+period of 1 year, so is sufficient to indicate the strating year and the ending year
+of file set you want to download. 
+
+=========================================================================================
+
+Other differences from 'wget_data_Med_CORDEX.ecf' task are the cdo  -setvals,0.0000,9.96921e+36 process.
+Has been noted that in many ERDDAP files on dry lands is setted a value of 0.0000 instead of a missing value.
+This operation exacuted before cut and remap process prevents from this problem. 
+
+If Frequency is setted to day, e month mean has been performed to have a monthly file as an output
+in according to the all data set present in file directory.
+
+ 
+
+
+
+
+
+
+

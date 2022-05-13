@@ -1,0 +1,13 @@
+============================================================================
+                           cut_files task manual
+============================================================================
+
+This task uses cdo informatic tool to cut the netCDF original file on the entire adriatic 
+Sea region. In particular the bash script changes one template array jobs and launches 
+it to perform a cutting operation by -sellonlatbox command. The cutted files will
+be temporally stored in a directory called cutted_files_${GCMModelName}_${CMIP5ExperimentName}_${VariableName} 
+
+The lon lat limits are indicated inside the Med_CORDEX_cut_template.job job array.
+For our goals a perfect domain is: 11.9,19.8,39.8,46.0 (lon_min,lon_max,lat_min,lat_max).
+
+File names are changed by the 'adriatic_' prefix.

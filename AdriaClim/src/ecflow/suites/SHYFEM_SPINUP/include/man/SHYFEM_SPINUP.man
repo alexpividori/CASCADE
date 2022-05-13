@@ -1,0 +1,191 @@
+# ******************************************************************************
+#                                   MANUAL
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:      this is the manual for the "SHYFEM_SPINUP" suite.
+#                    It contains the following type of information:
+#                     - GOAL OF THE SUITE;
+#                     - DESCRIPTION OF THE SUITE;
+#                     - GUIDE FOR USERS;
+#                     - WHAT TO DO IN CASE OF FAILURES;
+#                     - GLOSSARY.
+#
+#  DEVELOPER:        Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:    2021-10-27.
+#
+#  MODIFICATIONS:    none.
+#
+#  VERSION:          0.1.
+#
+# ******************************************************************************
+
+GOAL OF THE SUITE
+Quantitative estimation of the spin-up time of the SHYFEM model, for some
+physical, oceanographic quantities, on the basis of the comparison between two
+simulations, run at different initial times.
+
+DESCRIPTION OF THE SUITE
+The suite is composed by the following main families, the description of which
+explains the aim of the suite itself:
+
+ 1) "sentinel"                    -> this is the family for checking the
+                                     existence of the data files to be analysed:
+                                     the existence of SHYFEM outputs (TS, HYDRO
+                                     and EXT files) is checked for both
+                                     simulations to be compared. Each type of
+                                     file is checked individually;
+ 2) "convert_and_split"           -> this is the family for converting or
+                                     splitting (unpacking) data files: TS and
+                                     HYDRO outputs are converted from SHY (.shy)
+                                     to NetCDF (.nc), while EXT ("ext" family)
+                                     outputs are splitted (unpacked), for both
+                                     simulations to be compared;
+ 3) "time_series_plot_cp"         -> this is the family for comparing the
+                                     desired couple of simulations, through time
+                                     series plots, either for temperature (t),
+                                     salinity (s), eastward (u) and northward
+                                     (v) sea water velocity, and water level
+                                     (z), retrieved in splitted (unpacked) EXT
+                                     outputs, hence in EXT nodes ASCII files.
+                                     For each variable (t, s, u, v and z), EXT
+                                     node and/or vertical layer (in case of 3D
+                                     variables), the time series of the
+                                     difference between the two simulations to
+                                     be compared, and of the sum of the
+                                     differences themselves, computed from each
+                                     time step onward, is computed;
+ 4) "spinup_fit"                  -> this is the family for estimatimg the
+                                     spin-up time of the SHYFEM model,
+                                     according to a regression analysis,
+                                     performed either for temperature (t),
+                                     salinity (s), eastward (u) and northward
+                                     (v) sea water velocity, and water level
+                                     (z). For each variable (t, s, u, v and z),
+                                     EXT node and/or vertical layer (in case of
+                                     3D variables), the analysis is carried out
+                                     on the time series of the sum of the
+                                     differences between SIMA and SIMB, computed
+                                     from each time step onward. Regression
+                                     plots are drawn;
+ 5) "spinup_ho_distribution_plot" -> this is the family for drawing contour
+                                     plots of the horizontal distribution of
+                                     the spin-up time, estimated for temperature
+                                     (t), salinity (s), eastward (u) and
+                                     northward (v) sea water velocity, and water
+                                     level (z), at constant depth. Specifically,
+                                     a figure is drawn for each vertical layer
+                                     (in case of 3D variables) to be considered;
+ 6) "spinup_statistics"           -> this is the family for computing some of the main
+                                     statistical parameters of the distribution of
+                                     spin-up times estimated for a certain variable (t,
+                                     s, u, v and z) and for all the EXT nodes (and
+                                     vertical layers, in case of 3D variables). This is
+                                     performed either for t, s, u, v and z. Moreover,
+                                     the summary of spin-up time statistics of all the
+                                     variables is provided in a file, and depicted
+                                     through a box and whiskers plot (whiskers extend
+                                     from minimum to maximum, boxes extend from 25th to
+                                     75th percentile and medians are depicted with
+                                     horizontal, orange lines).
+
+GUIDE FOR USERS
+In order to be able to properly use this suite, follow the steps listed below:
+
+ 1) check the ENVIRONMENTAL VARIABLES in the DEFINITION SECTION of the suite's
+    definition file ("%SUITE%.def") and edit them according to your environment
+    or convenience;
+ 2) check the SUITE VARIABLES in the DEFINITION SECTION of the suite's
+    definition file ("%SUITE%.def") and edit SIMA and SIMB according to the
+    identification codes of the couple of simulations you want to compare (*);
+ 3) prepare the initialisation files peculiar to the couple of simulations you
+    want to compare, to be named as the identification codes of these
+    simulations, plus the ".ini" extension (e.g. if SIMA and SIMB were set to
+    "1995F500A1_A001" and "1995F500A1_A002", the related initialisation files
+    have to be named as "1995F500A1_A001.ini" and "1995F500A1_A002.ini",
+    respectively): just copy one of these types of files, which should be
+    already present in the "include/etc" subdirectory of the suite, and define
+    the "SHY_SIM_ID" variable as the identification code of the corresponding
+    simulation (e.g. SHY_SIM_ID="1995F500A1_A001" in file "1995F500A1_A001.ini",
+    SHY_SIM_ID="1995F500A1_A002" in file "1995F500A1_A002.ini", etc.).
+    This type of files, which are identical to each other (except for the
+    "SHY_SIM_ID" variable, to be defined as just explained) have to be placed
+    in the "include/etc" subdirectory of the suite;
+ 4) if necessary, define all the variables present in the initialisation files
+    prepared at point 3), according to your needs or convenience, without
+    changing their names;
+ 5) prepare the initialisation files peculiar to the variables (temperature,
+    salinity, eastward and northward sea water velocity, and water level), to
+    be named as "what.dim.ini", where "what" is the variable's abbreviation
+    ("temp" for temperature, "salt" for salinity, "velx" for eastward sea water
+    velocity, "vely" for northward sea water velocity and "zeta" for water
+    level) and "dim" is the variable's spatial dimension ("2d" for the water
+    level, "3d" for all the others). These types of files should be already
+    present in the "include/etc" subdirectory of the suite, hence no work is
+    actually required;
+ 6) if necessary, define all the variables present in the initialisation files
+    prepared at point 5), according to your needs or convenience, without
+    changing their names;
+ 7) load the suite;
+ 8) begin the suite.
+
+(*) The two simulations to be compared have to be identical to each other (same
+    numerical model's setting), except for the starting (and ending) date and
+    time. In order to evaluate the spin-up time of the model, the two
+    simulations have to start at different times (e.g. one 10 days after the
+    other) and share a time interval, long enough to incorporate the complete
+    relaxation of the system (e.g. more than about three months, if the domain is
+    the Marano and Grado lagoon).
+
+WHAT TO DO IN CASE OF FAILURES
+In case of failures, follow the hints listed below:
+
+ 1) check which node generated the failure and try to remove the bug. All tasks
+    of this suite should complete without failures.
+    In many cases, you can re-queue the whole suite and the problem is solved;
+ 2) keep in mind to check the "ecFlow" log files and to save them before
+    re-requeuing the suite, otherwise they will be overwritten.
+    You can find log files in the suite's "ECF_HOME" subdirectory
+    ("%ECF_HOME%%SUITE%").
+
+GLOSSARY
+Some key, or particular, words are listed in the following, together with their
+brief description:
+
+ - SHYFEM model          -> see https://sites.google.com/site/shyfem/home;
+ - STR file              -> ASCII parameter input file, with ".str" extension,
+                            needed to run SHYFEM. It guides SHYFEM's
+                            performance and contains all the necessary
+                            information for the main routine to execute the
+                            model;
+ - SHY file              -> binary file, with ".shy" extension, storing
+                            SHYFEM's simulations outputs;
+ - TS file               -> SHY file storing temperature and salinity fields;
+ - HYDRO file            -> SHY file storing the sea water velocity field;
+ - EXT file              -> SHY file (actually with ".ext" extension) storing
+                            fields provided with higher frequency, for all the
+                            variables, but for EXT nodes only;
+ - EXT node:             -> set of nodes of the computational mesh, specified
+                            in the "$extra" section of SHYFEM's STR file, for
+                            which simulations outputs are provided with higher
+                            frequency;
+ - EXT nodes ASCII files -> ASCII time series files, resulting from a splitted
+                            (unpacked) EXT file, arranged in two or more
+                            columns, the first containing date and time
+                            (formatted as YYYY-MM-DD::hh:mm:ss), while the
+                            others containing actual data, referred to a
+                            specific vertical layer (2nd column -> layer 1, 3rd
+                            column -> layer 2, etc.). For 2D variables, there
+                            are only two columns and a reference layer can not
+                            be specified (for the water level, the reference is
+                            the sea surface). The basename of these files is of
+                            the following type: "what.dim.node", where "what"
+                            is the variable's abbreviation (e.g. "temp", "salt",
+                            "velx", "vely", "zeta"), "dim" is the variable's
+                            spatial dimension ("2d" or "3d") and "node" is
+                            consecutive EXT node numbering (e.g. "1" for EXT
+                            node 1, "2" for EXT node 2, etc.).

@@ -1,0 +1,82 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at checking if the
+#                  identification code of the simulation to be run was already
+#                  attributed to another simulation, or not. If not, it can be
+#                  used. Otherwise, the user is invited to consider another
+#                  free, proper identification code.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-01-10.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# Check if the scratch directory containing all the stuff related to the
+# simulation to be run is already existent (i.e. the identification code of the
+# simulation to be run was already attributed to another simulation, which is
+# still running. Please note that this directory could exist by mistake due to
+# a previous unsuccessful run/flow, or test)
+if [[ -e $SCRATCH_SIM_ID_DIR ]]; then
+    # Inform the user and abort
+    echo -e "\tWARNING! Simulation ID: ${SHY_SIM_ID} already attributed. Please consider"
+    echo -e "\t         another free ID, or check (read below)."
+    echo -e "\t         Directory: ${SCRATCH_SIM_ID_DIR} already existent. This is due to"
+    echo -e "\t         one of the two following facts:"
+    echo -e "\t          1) a simulation with ID=${SHY_SIM_ID} is running (another ID has"
+    echo -e "\t             to be considered);"
+    echo -e "\t          2) a previous unsuccessful run/flow, or test, left the directory"
+    echo -e "\t             (the directory can be deleted by hand and the ID can be kept,"
+    echo -e "\t             but make sure it is the case)."
+    echo -e "\t         ABORT..."; ERROR
+fi
+# Check if the data directory storing all the stuff related to the simulation
+# to be run is already existent (i.e. the identification code of the simulation
+# to be run was already attributed to another simulation, which is stored.
+# Please note that this directory could exist by mistake due to a previous
+# test)
+if [[ -e $SHY_SIM_ID_DIR ]]; then
+    # Inform the user and abort
+    echo -e "\tWARNING! Simulation ID: ${SHY_SIM_ID} already attributed. Please consider"
+    echo -e "\t         another free ID, or check (read below)."
+    echo -e "\t         Directory: ${SHY_SIM_ID_DIR} already existent. This is due to"
+    echo -e "\t         one of the two following facts:"
+    echo -e "\t          1) a simulation with ID=${SHY_SIM_ID} was already performed and"
+    echo -e "\t             stored (another ID has to be considered);"
+    echo -e "\t          2) a previous test created the directory (the directory can be"
+    echo -e "\t             deleted by hand and the ID can be kept, but make sure it is"
+    echo -e "\t             the case)."
+    echo -e "\t         ABORT..."; ERROR
+fi
+
+# If the identification code of the simulation to be run was not attributed to
+# another simulation yet, it can be used
+echo -e "\tSimulation ID: ${SHY_SIM_ID} not attributed yet. It is going to be used..."
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

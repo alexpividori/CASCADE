@@ -1,0 +1,4 @@
+/lustre/arpa/minighera/data/rivers/portate_fiume_isonzo_pciv_20150921-20190315.dat 20150921100000 20210227070000
+/lustre/arpa/minighera/data/rivers/portate_fiume_isonzo_pciv_20180101-20210227.dat 20150921100000 20210227070000
+/lustre/arpa/minighera/data/rivers/portate_fiume_tagliamento_pciv_20150419-20210301.dat 20150419140000 20210301000000
+/lustre/arpa/minighera/data/rivers/portate_fiume_tagliamento_pciv_20180101-20210227.dat 20150419140000 20210301000000

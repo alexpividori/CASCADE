@@ -1,0 +1,98 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at printing the last N lines of
+#                  the log INF file of the desired simulation (see the EXTERNAL
+#                  FILES comment section), in a temporary file.
+#                  Printing is carried out every N minutes, from the
+#                  simulation's start, until the simulation's end; N is
+#                  provided by the user through an initialisation file (see the
+#                  EXTERNAL FILES comment section).
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - log INF file: SHYFEM run's log file (.inf);
+#                  - run status file: ASCII file containing only one digit (0
+#                    when the run started, 1 when the run ended);
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-12-20.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation. The
+# basename (extension excluded) of this initialisation file is provided by a
+# family variable
+%include <etc/%SIM%.ini>
+
+# Define the default status for the printing of the last lines of the log file:
+#  - OKKO=0 -> all went OK
+#  - OKKO=1 -> something went KO
+OKKO=0
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}...\n"; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Define the run status by reading the run status file:
+#  - 0 -> run started (running)
+#  - 1 -> run completed
+RUN_STATUS=$(<$RUN_STATUS_FILENAME)
+# While the simulation is running, but it is not completed yet
+while [ $RUN_STATUS -ne 1 ]; do
+    # Wait the desired number of seconds
+    sleep $(( SPY_SLEEP_MIN*60 ))
+    # Check if the log file exists:
+    #  - if it exists
+    if [[ -e $SHY_INF_FILENAME ]]; then
+        # Inform the user
+        echo -e "\tFile: ${SHY_INF_FILENAME} exists. Printing its tail in file: ${SHY_INF_FILE_TAIL}."
+        # Print the last N lines of the log file in a file
+        tail -n $N_LINES_TAIL $SHY_INF_FILENAME > $SHY_INF_FILE_TAIL || OKKO=1
+        # Check the outcome of the printing:
+        #  - if all went OK
+        if [[ OKKO -eq 0 ]]; then
+            # Inform the user and copy the new file in the directory aimed at
+            # containing all the stuff related to the "spy" of the specific
+            # simulation, to be published on the Net
+            echo -e "\tFile: ${SHY_INF_FILENAME}, tail successfully printed in file ${SHY_INF_FILE_TAIL}.\n"
+            cp $SHY_INF_FILE_TAIL $PUB_HTML_SHY_SPY_SIM_DIR; echo -e "\tFile: ${SHY_INF_FILE_TAIL} copied in ${PUB_HTML_SHY_SPY_SIM_DIR}."
+            echo -e "\tFile: ${SHY_INF_FILE_TAIL}. Its content is also printed here below:\n"
+            cat $SHY_INF_FILE_TAIL
+        #  - if something went KO
+        else
+            # Inform the user and abort
+            echo -e "\tERROR! File: ${SHY_INF_FILENAME}, tail unsuccessfully printed in file ${SHY_INF_FILE_TAIL}. ABORT..."; ERROR
+        fi
+    #  - if it does not exist
+    else
+        # Inform the user
+        echo -e "\tFile: ${SHY_INF_FILENAME} does not exist yet. Please wait...\n"
+    fi
+    # Redefine the run status by reading the run status file:
+    #  - 0 -> run started (running)
+    #  - 1 -> run completed
+    RUN_STATUS=$(<$RUN_STATUS_FILENAME)
+done
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

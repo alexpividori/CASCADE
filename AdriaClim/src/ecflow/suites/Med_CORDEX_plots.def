@@ -1,0 +1,69 @@
+# +---------------------------------------------------------------------------+
+#
+# This is the ecFlow suite definition driving the operational flow voted to the
+# monitor the INTERREG IT-HR projects activities on the C3HPC cluster and to 
+# report its operational status                   
+#
+suite Med_CORDEX_plots 
+   
+  #   ENVIRONMENTAL VARIABLES DEFINITION START
+  #
+  # Directory. It is used as a prefix portion of the path of the job files created by ecFlow server
+  # 
+    edit ECF_HOME    /lustre/arpa/scratch/ecflow/AdriaClim
+  #
+  # Directory. It is used to find the ecFlow files
+  # 
+    edit ECF_FILES   /lustre/arpa/scratch/pividoria/AdriaClim/src/ecflow/suites/Med_CORDEX_plots
+  #
+  # Directory: It is used to find the files to be included in the nodes
+  # 
+    edit ECF_INCLUDE /lustre/arpa/scratch/pividoria/AdriaClim/src/ecflow/suites/Med_CORDEX_plots/include
+  #
+  #
+  #
+  # Number of times a job should be rerun if it aborts (default is 2)
+  # 
+    edit ECF_TRIES  1 
+  #
+  # Number of seconds to sleep at the end of each task (Not necessary, but suggested to avoid task overlapping)
+  # 
+  
+  #
+  #   ENVIRONMENTAL VARIABLES DEFINITION STOP
+  #
+
+  edit SLEEP 2
+
+#============================ SHYFEM validation ===========================
+
+family edit_data
+      
+      task set_dir
+      task wget_data_Med_CORDEX
+        trigger set_dir eq complete
+      task cut_files      
+        trigger wget_data_Med_CORDEX eq complete
+      task remap_files
+        trigger cut_files eq complete
+      task merge_files
+        trigger remap_files eq complete
+
+endfamily
+
+#==========================================================================
+
+#family ERDDAP_files
+    
+#     task ERDDAP_set_dir
+#     task ERDDAP_curl_data 
+#        trigger ERDDAP_set_dir eq complete
+#     task ERDDAP_cut_files
+#        trigger ERDDAP_curl_data eq complete
+#     task ERDDAP_remap_files
+#        trigger ERDDAP_cut_files eq complete
+#     task ERDDAP_merge_files
+#        trigger ERDDAP_remap_files eq complete
+#endfamily
+
+endsuite

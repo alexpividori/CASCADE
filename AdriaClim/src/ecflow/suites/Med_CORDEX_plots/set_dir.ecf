@@ -1,0 +1,30 @@
+%manual
+%include <man/set_dir.man>
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <etc/general_Med_CORDEX_plots.ini>
+
+
+        if [[ ! -d $tmp_dir_root ]]; then
+             mkdir -p $tmp_dir_root   || { echo "The directory $tmp_dir_root can't be created"; ERROR ; }
+             echo "Directory $tmp_dir_root has been created"
+             cp $script_dir/* $tmp_dir_root/
+        else
+             rm -r $tmp_dir_root || { echo "The directory $tmp_dir_root can't be remove"; ERROR ; }
+             echo "The directory $tmp_dir_root has been removed"
+             mkdir -p $tmp_dir_root   || { echo "The directory $tmp_dir_root can't be created"; ERROR ; }
+             echo "$script_dir Scripts has been copied inside $tmp_dir_root"
+             cp $script_dir/* $tmp_dir_root/
+        fi
+
+# chmod -R 775 $tmp_dir_root/   # I change recursively all the permissions
+
+echo "The task is now COMPLETED"
+
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+

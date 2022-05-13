@@ -1,0 +1,202 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at linking, with proper names,
+#                  all the input files (settings, grid/basin, data) needed by
+#                  SHYFEM to run the simulation, to the desired directories.
+#                  Actually, the restart file (if existent) is copied and not
+#                  linked.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - files to be linked in order for the simulation to be run
+#                    (these files are provided manually, through their full
+#                    paths, in this task);
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2022-03-11.
+#
+#  MODIFICATIONS:  none.
+#
+#  VERSION:        0.1.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+#  --- START OF FUNCTIONS ---
+
+# Create a symbolic link of the given file to the current directory, and rename
+# it properly
+mklink () {
+    # Define the name (full path) of the file to be linked (first variable
+    # provided to the function)
+    file2link="$1"
+    # Define the name to be attributed to the link (second variable provided
+    # to the function)
+    linkname="$2"
+    # Define the default status for the linking operation:
+    #  - OKKO_mklink=0 -> all went OK
+    #  - OKKO_mklink=1 -> something went KO
+    OKKO_mklink=0
+    # If the variable associated to the file to be linked is not empty and the
+    # file exists 
+    if [[ ! -z $file2link  ]] && [[ -f $file2link ]]; then
+        # Inform the user
+        echo -e "\n\tFile: ${file2link} exists. It is going to be linked in the current directory..."
+        # Create the symbolic link to the current directory, with the desired
+        # name
+        ln -sv $file2link ./$linkname || OKKO_mklink=1
+        # Check the outcome of the linking operation:
+        #  - if all went OK
+        if [[ $OKKO_mklink -eq 0 ]]; then
+            # Inform the user
+            echo -e "\tFile: ${file2link} successfully linked in ./${linkname}.\n"
+        #  - if something went KO
+        else
+            # Inform the user and abort
+            echo -e "\tFile: ${file2link} unsuccessfully linked. ABORT..."; ERROR
+        fi
+    fi
+}
+
+# Create a copy of the given file to the current directory, and rename
+# it properly
+mkcp () {
+    # Define the name (full path) of the file to be copied (first variable
+    # provided to the function)
+    file2copy="$1"
+    # Define the name to be attributed to the copied file (second variable
+    # provided to the function)
+    copyname="$2"
+    # Define the default status for the copying operation:
+    #  - OKKO_mkcopy=0 -> all went OK
+    #  - OKKO_mkcopy=1 -> something went KO
+    OKKO_mkcopy=0
+    # If the file to be copied exists
+    if [[ -f $file2copy ]]; then
+        # Inform the user
+        echo -e "\n\tFile: ${file2copy} exists. It is going to be copied in the current directory..."
+        # Copy the file in the current directory, with the desired name
+        cp $file2copy ./$copyname || OKKO_mkcopy=1
+        # Check the outcome of the copying operation:
+        #  - if all went OK
+        if [[ $OKKO_mkcopy -eq 0 ]]; then
+            # Inform the user
+            echo -e "\tFile: ${file2copy} successfully copied in ./${copyname}.\n"
+        #  - if something went KO
+        else
+            # Inform the user and abort
+            echo -e "\tFile: ${file2copy} unsuccessfully copied. ABORT..."; ERROR
+        fi
+    fi
+}
+
+#  --- END OF FUNCTIONS ---
+
+# Inform the user about the current directory
+echo -e "\tCurrent directory: $(pwd).\n"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_DIR}..."; cd $SCRATCH_SIM_ID_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+# Function calling: link the STR (.str) template file and BAS (.bas) file to
+# the current directory
+mklink "${SHY_STR_FILE_TPL}" "${SHY_STR_FILE_TPL##*/}"
+mklink "${SHY_BASIN_FILE}" "${SHY_BASIN_FILENAME}.bas"
+# Function calling: copy the RST (.rst) file in the current directory
+mkcp "${RESTRT_FILE}" "${RESTRT_FILE_LINK}"
+# Function calling: copy the "deltas" files in the current directory
+mkcp "${METEO_DELTAS_FILE}" ""   # boundary conditions
+mkcp "${METEO_DELTAS_FILE}" ""   # meteorological forcing
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_INPUT_DIR}..."; cd $SCRATCH_SIM_ID_INPUT_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+# Function calling: link the GOTM file to the current directory
+mklink "${GOTMPA_FILE}" "${GOTMPA_FILE_LINK}"
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_INPUT_ADRI_DIR}..."; cd $SCRATCH_SIM_ID_INPUT_ADRI_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+# Function calling: link sea data files (initial and boundary conditions) to
+# the current directory. If sensitivity runs has to be performed ("deltas" file
+# provided), perturbed boundary conditions for sea temperature, salinity and
+# water level are considered:
+#  - sensitivity runs (perturbed boundary conditions for water level, salinity
+#    and water temperature)
+if [[ ! -z $BC_DELTAS_FILE_TSZ ]]; then
+    mklink "${SHY_BC_FILE_Z_PERT}" "${SHY_BC_FILE_Z_LINK}"   # perturbed water level (BC)
+    mklink "${SHY_BC_FILE_S_PERT}" "${SHY_BC_FILE_S_LINK}"   # perturbed salinity (BC)
+    mklink "${SHY_BC_FILE_T_PERT}" "${SHY_BC_FILE_T_LINK}"   # perturbed water temperature (BC)
+#  - benchmark (not perturbed boundary conditions for water level, salinity and
+#    water temperature)
+else
+    mklink "${SHY_BC_FILE_Z}" "${SHY_BC_FILE_Z_LINK}"   # not perturbed water level (BC)
+    mklink "${SHY_BC_FILE_S}" "${SHY_BC_FILE_S_LINK}"   # not perturbed salinity (BC)
+    mklink "${SHY_BC_FILE_T}" "${SHY_BC_FILE_T_LINK}"   # not perturbed water temperature (BC)
+fi
+mklink "${SHY_BC_FILE_V}" "${SHY_BC_FILE_V_LINK}"   # not perturbed water velocities (BC)
+mklink "${SALTIN_FILE}" "${SALTIN_FILE_LINK}"       # not perturbed salinity (IC)
+mklink "${TEMPIN_FILE}" "${TEMPIN_FILE_LINK}"       # not perturbed water temperature (IC)
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_INPUT_METEO_DIR}..."; cd $SCRATCH_SIM_ID_INPUT_METEO_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+# Function calling: link meteorological data to the current directory. If
+# sensitivity runs has to be performed ("deltas" file provided), perturbed
+# meteorological forcing are considered:
+#  - sensitivity runs (perturbed meteorological forcing)
+if [[ ! -z $METEO_DELTAS_FILE ]]; then
+    mklink "${WIND_FILE_PERT}" "${WIND_FILE_LINK}"     # perturbed wind
+    mklink "${QFLUX_FILE_PERT}" "${QFLUX_FILE_LINK}"   # perturbed heat
+    mklink "${RAIN_FILE_PERT}" "${RAIN_FILE_LINK}"     # perturbed rain
+#  - benchmark (not perturbed meteorological forcing)
+else
+    mklink "${WIND_FILE}" "${WIND_FILE_LINK}"     # not perturbed wind
+    mklink "${QFLUX_FILE}" "${QFLUX_FILE_LINK}"   # not perturbed heat
+    mklink "${RAIN_FILE}" "${RAIN_FILE_LINK}"     # not perturbed rain
+fi
+
+# Change directory and inform the user
+echo -e "\tChange directory: moving to ${SCRATCH_SIM_ID_INPUT_RIVERS_DIR}..."; cd $SCRATCH_SIM_ID_INPUT_RIVERS_DIR
+echo -e "\tCurrent directory: $(pwd).\n"
+# Function calling: link rivers data to the current directory
+mklink "${SHY_MIRNA_FILE}" "${SHY_MIRNA_FILE_LINK}"
+mklink "${SHY_DRAGONJA_FILE}" "${SHY_DRAGONJA_FILE_LINK}"
+mklink "${SHY_DRNICA_FILE}" "${SHY_DRNICA_FILE_LINK}"
+mklink "${SHY_BADASEVICA_FILE}" "${SHY_BADASEVICA_FILE_LINK}"
+mklink "${SHY_RIZANA_FILE}" "${SHY_RIZANA_FILE_LINK}"
+mklink "${SHY_OSPO_FILE}" "${SHY_OSPO_FILE_LINK}"
+mklink "${SHY_TIMAVO_FILE}" "${SHY_TIMAVO_FILE_LINK}"
+mklink "${SHY_ISONZO_FILE}" "${SHY_ISONZO_FILE_LINK}"
+mklink "${SHY_TAGLIAMENTO_FILE}" "${SHY_TAGLIAMENTO_FILE_LINK}"
+mklink "${SHY_LOVI_FILE}" "${SHY_LOVI_FILE_LINK}"
+mklink "${SHY_NICESOLO_LEMENE_FILE}" "${SHY_NICESOLO_LEMENE_FILE_LINK}"
+mklink "${SHY_LIVENZA_MONTICANO_FILE}" "${SHY_LIVENZA_MONTICANO_FILE_LINK}"
+mklink "${SHY_STELLA_FILE}" "${SHY_STELLA_FILE_LINK}"
+mklink "${SHY_TURGNANO_FILE}" "${SHY_TURGNANO_FILE_LINK}"
+mklink "${SHY_CORMOR_FILE}" "${SHY_CORMOR_FILE_LINK}"
+mklink "${SHY_ZELLINA_FILE}" "${SHY_ZELLINA_FILE_LINK}"
+mklink "${SHY_CORNO_FILE}" "${SHY_CORNO_FILE_LINK}"
+mklink "${SHY_AUSA_FILE}" "${SHY_AUSA_FILE_LINK}"
+mklink "${SHY_NATISSA_TERZO_FILE}" "${SHY_NATISSA_TERZO_FILE_LINK}"
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>

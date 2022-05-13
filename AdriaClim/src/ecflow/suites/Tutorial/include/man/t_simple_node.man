@@ -1,0 +1,36 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    Mar 26, 2021
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Show how family and nodes work. Just one task saying hello and listing a directory
+   Command date is used too to show how % character should be considered carefully
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   Nothing to add with respect the tasl goal description, just see how this manual
+   is written, where it is placed since it is searced in: 
+   %%ECF_INCLUDE%%=%ECF_INCLUDE%
+  
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

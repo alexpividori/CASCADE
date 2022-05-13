@@ -1,0 +1,55 @@
+This directory is considered a sort of "database" for the "extra" (EXT) nodes
+(*) to be considered in the frame of AdriaClim INTERREG IT-HR project's
+simulations, performed by ARPA FVG (PP11).
+
+(*) EXT nodes are specific nodes of the computational mesh, for which model
+    outputs are provided with higher frequency.
+
+The role of all the files, which are stored in this directory, can be
+understood first by reading this README file and then by reading the header of
+each of them.
+
+This README file is arranged in one Section only (CLASSIFICATION OF EXT NODES),
+the reading of which is mandatory, if it has not already been addressed before:
+
+
++-----------------------------+
+| CLASSIFICATION OF EXT NODES +
++-----------------------------+
+
+All the EXT nodes considered by ARPA FVG (PP11, AdriaClim INTERREG IT-HR
+project) are classified according to an alphanumeric identification code,
+composed by 5 characters.
+
+The classification used to identify all the EXT nodes considered by ARPA FVG,
+in the frame of the AdriaClim INTERREG IT-HR project, is defined as follows:
+
+  - each EXT node is identified by an alphanumeric code, composed by 5
+    characters (see the "main_table.csv" file belonging to this directory);
+  - the alphanumeric code is divided in 3 parts, the first (see the
+    "char_01_table.csv" file) and the second (see the "char_02_table.csv" file)
+    composed by 1 character, while the third composed by 3 characters;
+  - the first and second part of the alphanumeric code are composed by letters
+    only, i.e. each character can be an element of the following set: {A, B, C,
+    D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, Y, Z};
+  - the third part of the alphanumeric code is composed by numbers only, in
+    decimal base, i.e. each character can be an element of the following set:
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  - the first part of the alphanumeric code identifies the general location of
+    the EXT node (C = node near the coast; L = node in the lagoon or in one of
+    its mouths; M = node in the open sea; C = node near the coast; S = nearest
+    node to an ARPA FVG's measurement station or buoy);
+  - the second part of the alphanumeric code identifies the relevance of the
+    location of the EXT node (B = node in a bathing site or near a bathing
+    site; F = node near a river mouth or delta; G = nearest node to a buoy;
+    N = node in a nature reserve or near a nature reserve; P = node in an
+    harbor or bay, but not in a bathing site; X = node in a location of no
+    particular relevance);
+  - the third part of the alphanumeric code identifies the progressive number
+    (starting from 001) of the EXT node, with respect to the class defined by
+    the first part of the alphanumeric code.
+
+
+The list of all the EXT nodes to be considered in the frame of AdriaClim
+INTERREG IT-HR project's simulations, performed by ARPA FVG (PP11), can be
+retrieved in the "list_of_EXT_nodes.csv" file, belonging to this directory.

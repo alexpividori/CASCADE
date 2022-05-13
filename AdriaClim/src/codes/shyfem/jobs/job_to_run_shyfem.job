@@ -1,0 +1,95 @@
+#!/bin/bash
+
+#******************************************************************************
+#
+# DESCRIPTION:      this Bash script is aimed at running the SHYFEM model on
+#                   eXact lab's C3HPC queues (job scheduler: PBSPro).
+#
+#                   Note: this code must be executed from the directory (or
+#                   related subdirectories) where the SHYFEM model has been
+#                   installed and compiled.
+#
+# EXTERNAL CALLS:   SHYFEM model.
+#
+# EXTERNAL FILES:   none.
+#
+# DEVELOPER:        Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                   ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# CREATION DATE:    19/04/2021.
+#
+# MODIFICATIONS:    30/04/2021 ---> change of the environmental modules to be
+#                                   loaded;
+#                              ---> addition of other full paths of parameter
+#                                   input files;
+#                   17/06/2021 ---> addition of job directives, mandatory for
+#                                   INTERREG IT-HR AdriaClim jobs.
+#
+# VERSION:          0.3.
+#
+#******************************************************************************
+
+# ******************
+#  JOB'S DIRECTIVES
+# ******************
+
+#PBS -P AdriaClim
+#PBS -W umask=0002
+##PBS -S /bin/bash
+##PBS -V
+#PBS -N shyfem_job
+#PBS -o shyfem_job_stdout
+#PBS -e shyfem_job_stderr
+#PBS -q arpa
+#PBS -l nodes=1:ppn=24
+#PBS -l walltime=25:00:00
+##PBS -m abe
+##PBS -M alessandro.minigher@arpa.fvg.it
+
+# ************
+#  ACTUAL JOB
+# ************
+
+# Modify the behaviour of the shell by activating traps and errors in case of
+# undefined variables, and debug
+set -e   # activate traps
+set -u   # activate errors in case of undefined variables
+#set -x   # debug
+
+# Define the default exit status parameter
+EXIT_STATUS=0
+
+# Move to the directory where the job has been submitted
+cd $PBS_O_WORKDIR
+
+# Define the environmental modules to be loaded
+#intel_compilers="intel-parallel-studio/composer.2020.1/gcc/8.2.0-nsspynk"
+#netcdf_fortran="netcdf-fortran/4.5.2/intel/19.1.1.217-x6s5tkt"
+arpa="arpa"
+shyfem_7570="shyfem/7.5.70"
+
+# Purge, load and list the environmental modules
+module purge                   # purge
+module load $arpa             # load
+module load $shyfem_7570
+module list                    # list
+
+# Define the full path of the parameter file, required in input by the SHYFEM
+# model
+str_file="/lustre/arpa/minighera/shyfem/test_WRF_002/nadri-mg_2018.str"
+
+# If the parameter file exists
+if [[ -f $str_file ]]; then
+    # Print message to inform the user
+    echo -e "\n\tParameter file: $str_file found. Simulation starts...\n"
+# Otherwise
+else
+    # Print message to inform the user and exit
+    echo -e "\n\tWARNING! Parameter file: $str_file not found. Please check.\n"
+    exit
+fi
+
+# Run the SHYFEM model
+shyfem $str_file
+exit $EXIT_STATUS

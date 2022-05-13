@@ -1,0 +1,18 @@
+# *****************************
+# * EXT NODES ID: CHARACTER 2 *
+# *****************************
+# The table below defines the meaning of character 2 in the alphanumeric
+# identification code, of the EXT nodes to be considered in the frame of
+# AdriaClim INTERREG IT-HR project's simulations, by ARPA FVG (PP11).
+# It is worth to remind that character 2 is reserved to the relevance of the
+# location of the EXT node.
+# To know how to use this table, read the README file belonging to this
+# directory.
+# **********************************
+ID;Description
+B;node in a bathing site or near a bathing site
+F;node near a river mouth or delta
+G;nearest node to a buoy
+N;node in a nature reserve or near a nature reserve
+P;node in an harbor or bay, but not in a bathing site
+X;node in a location of no particular relevance

@@ -1,0 +1,67 @@
+# ******************************************************************************
+#                                    TASK
+#                   To be used in the frame of "ecFlow" suites
+#            (https://confluence.ecmwf.int/display/ECFLOW/ecflow+home)
+# ******************************************************************************
+#
+#  DESCRIPTION:    this "ecFlow" task is aimed at checking the existence of a
+#                  desired file.
+#
+#  EXTERNAL CALLS: none.
+#
+#  EXTERNAL FILES: - header managing general calls to "ecFlow" client;
+#                  - suite initialisation file, specific for a certain
+#                    simulation;
+#                  - tail managing general calls to "ecFlow" client.
+#
+#  DEVELOPER:      Alessandro Minigher (alessandro.minigher@arpa.fvg.it)
+#                  ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                  "AdriaClim" Interreg IT-HR project
+#
+#  CREATION DATE:  2021-09-30.
+#
+#  MODIFICATIONS:  2021-10-04 -> removal of the check on the existence of the
+#                                directory containing the desired file (now
+#                                the existence of the desired file is
+#                                directly checked).
+#                  2021-10-15 -> in case of errors, exit with EXIT_STATUS=1.
+#                  2021-10-22 -> improvement in the description of the task.
+#
+#  VERSION:        0.3.
+#
+# ******************************************************************************
+
+# Include header common to all tasks, managing general calls to "ecFlow" client
+%include <head.h>
+# Include a specific initialisation file, peculiar to the given simulation
+# (e.g. "1995F500D0_A001.ini" for simulation "1995F500D0_A001"). The basename
+# (extension excluded) of this initialisation file is provided by a family
+# variable
+%include <etc/%SIM%.ini>
+
+# **********************
+#  START OF MAIN SCRIPT
+# **********************
+
+# Define the name (full path) of the desired file to be checked, by the use of
+# of both suite variables and variables retrieved in the initialisation file
+# peculiar to the given simulation
+file2check="${SHY_SIM_ID_DIR}/${SHY_SIM_NAME}.%TOCHECK%"
+# Check the existence of the desired file:
+#  - if the file exists
+if [[ -e $file2check ]]; then
+    # Inform the user and set an event
+    echo -e "\n\tFile: ${file2check} exists.\n"
+    ecflow_client --event=check_OK
+#  - if the file does not exist
+else
+    # Inform the user and abort
+    echo -e "\n\tERROR! File: ${file2check} does not exist. ABORT...\n"; ERROR
+fi
+
+# ********************
+#  END OF MAIN SCRIPT
+# ********************
+
+# Include tail common to all tasks, managing general calls to "ecFlow" client
+%include <tail.h>
