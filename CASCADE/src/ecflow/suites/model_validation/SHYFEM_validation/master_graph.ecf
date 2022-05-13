@@ -1,0 +1,199 @@
+%manual
+%include <man/master_graph.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks. 
+                                                        # It manages general calls to ecflow client
+%include <etc/general_shy.ini>
+
+# In this SHYFEM version the output plot will be placed directly in the public_html directory of
+# /lustre/arpa/CASCADE/public_html for the public condividation 
+
+#*************** charging modules ************
+
+module load $ncl_module    &>/dev/null
+module load $r_module      &>/dev/null
+
+#==============================================
+
+#      output_files_dir="$output_validation_plots"
+#      output_files_dir_s="\"$output_validation_plots\""
+
+ pre_initialization_file="$init_file_dir/pre_initialization_file.txt"
+
+#============================= Check =============================
+
+if [ -d $tmp_dir_root ]; then
+  cd $tmp_dir_root
+  echo -e "Passage to \"$tmp_dir_root\" happened with success"
+else
+  echo -e "ERROR: Passage to \"$tmp_dir_root\" can't be executed cause the directory doesn't exists"
+  EXIT_STATUS=$?
+  exit $EXIT_STATUS
+fi
+
+#==================================================================
+
+i=1   # starts from first line
+
+while IFS=";" read -r  f1  f2
+do
+
+echo -e "\tThe monitoring station/s considered are:$f1"
+echo -e "\tThe time period considered is:$f2"
+
+# period variable is used only to be inserted in the graph title
+# so it's form fave to be human-readable
+
+	case $f2 in
+	season1)
+        period="Jan-Feb-Mar"
+	;;
+	season2)
+        period="Apr-May-Jun"
+	;;
+	season3)
+        period="Jul-Aug-Sep"
+	;;
+	season4)
+        period="Oct-Nov-Dec"
+	;;
+        1S)
+        period="Jan to Jun"
+        ;;
+        2S)
+        period="Jul to Dec"
+        ;;
+        tot)
+        period="Total"
+        ;;
+        *)
+        t1=${f2%%%%T*}   # all what is first the first "T": the strarting date (not time)
+        t22=${f2##*_} 
+        t2=${t22%%T*}
+        period="$t1 to $t2"       
+        ;;
+	esac
+
+       place=$f1
+       depths_dir="selected_depths_$i"
+       depths_dir_s="\"selected_depths_$i\""
+       drops_dir="drops_files_$i"
+       drops_dir_s="\"drops_files_$i\""
+
+#************* OutPut Directory **********************
+
+       output_files_dir="$output_validation_plots_root/%PLOT_TYPE%/${f2}"
+       output_files_dir_s="\"$output_validation_plots_root/%PLOT_TYPE%/${f2}\""
+       output_files_dir_TS="$output_validation_plots_root/%PLOT_TYPE%/${f2}/${f1}"   # TS diagrams have a different directory tree
+       output_files_dir_s_TS="\"$output_validation_plots_root/%PLOT_TYPE%/${f2}/${f1}\""
+
+       files_list_s="\"$drops_dir/list_files_TEMP_PSAL.txt\""
+
+#=======================================================================
+#                  Checking output directories
+#=======================================================================
+
+if [ %PLOT_TYPE% != "TS_diagram_NCL" ]; then
+
+  if [ -d $output_files_dir ]; then
+          echo -e "The directory \"$output_files_dir\"  exists"
+  else
+          mkdir -p $output_files_dir
+          echo -e "\t\n The directory \"$output_files_dir\" didn't exists. Now it has been correctly created."
+  fi
+
+else
+ 
+  if [ -d $output_files_dir_TS ]; then
+          echo -e "The directory \"$output_files_dir_TS\"  exists"
+  else
+          mkdir -p $output_files_dir_TS
+          echo -e "\t\n The directory \"$output_files_dir_TS\" didn't exists. Now it has been correctly created."
+  fi
+
+fi
+
+#============================================================
+#                     TS_diagram_NCL
+#============================================================
+
+if [ %PLOT_TYPE% == "TS_diagram_NCL" ]; then
+
+    echo -e "NCL script is now starting \n"
+
+    ncl -Q < TS_celio_comparison.ncl  init_file_TS=$files_list_s   data_dir=$drops_dir_s   output_dir=$output_files_dir_s_TS   
+
+    echo -e "NCL script for TS diagrams is just finished \n"
+
+fi
+
+#============================================================
+#                       boxplot_R  
+#============================================================
+
+if [ %PLOT_TYPE% == "boxplot_R" ]; then
+
+    echo -e "R boxplot script for temperature is now starting \n"
+
+    Rscript boxplot_delta_T_val.r     "$place" "$period" "$depths_dir" "$output_files_dir"
+
+    echo -e "R boxplot script for salinity is now starting \n"
+
+    Rscript boxplot_delta_S_val.r    "$place" "$period" "$depths_dir" "$output_files_dir"
+
+    echo -e "R scripts for temperature and salinity are just finished \n"
+
+fi
+
+#============================================================
+#                       Taylor_Diagram_R
+#============================================================
+
+if [ %PLOT_TYPE% == "taylor_R" ]; then
+
+    echo -e "R Taylor Diagram script for temperature is now starting \n"
+
+    Rscript taylor_diagram_temp.r     "$place" "$period" "$depths_dir" "$output_files_dir"
+
+    echo -e "R Taylor Diagram script for salinity is now starting \n"
+
+    Rscript taylor_diagram_sal.r      "$place" "$period" "$depths_dir" "$output_files_dir"
+
+    echo -e "R scripts for temperature and salinity are just finished \n"
+
+fi
+
+#============================================================
+#           Scatter_absolute_Temp_and_sal_plot_R
+#============================================================
+
+if [ %PLOT_TYPE% == "sctr_abs_R" ]; then
+
+    echo -e "R scatter plot script for absolute temperatures is now starting \n"
+
+    Rscript scatter_T_depth.r     "$place" "$period" "$drops_dir" "$output_files_dir"
+
+    echo -e "R scatter plot script for absolute salinity is now starting \n"
+
+    Rscript scatter_S_depth.r     "$place" "$period" "$drops_dir" "$output_files_dir"
+
+    echo -e "R scripts for temperature and salinity absolute value scatter plot are just finished \n"
+
+fi
+
+#============================================================
+
+
+(( i=i+1 ))
+  
+done < $pre_initialization_file
+ 
+    echo -e "\n\tThe task is now finished\n"
+
+    EXIT_STATUS=$?
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks. 
+                                       # It manages general calls to ecflow client

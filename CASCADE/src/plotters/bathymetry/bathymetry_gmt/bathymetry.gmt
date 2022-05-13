@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+#******************************************************************************
+#
+# DESCRIPTION:      This GMT script uses 1 netCDF file containing BATHYMETRY for shyfem files
+#                   Only module needed
+#                   module load gmt/6.0.0/intel/19.1.1.217-clpimwl
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (file_bat);
+#                    
+#                     
+#
+# DEVELOPER:        Alex Pividori (alex.pividori@arpa.fvg.it)
+#                   ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: NCL 6.0.0.
+#
+# CREATION DATE:    17/05/2021
+#
+# MODIFICATIONS:    17/05/2021 --> First and working version
+#                   
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+file_bat="/lustre/arpa/scratch/nadri-mg_2020.hydro-reg001.nc"   
+
+# modules have to be charged
+
+
+for i in $( cat "initialization_file.txt" ); do
+
+IFS=";"
+read -a parameters <<< "$i"
+
+index=1
+
+index_t=$(printf "%0.2u" $index )
+
+# After read the initialization_file parameters, I use them to prepare the .nc files
+
+    gmt makecpt -Crainbow -T0.0/30./1.0 > colors.cpt    # colors.cpt will not be created each time because I modified the background color to white.
+  
+
+  gmt begin "contour_bathymetry_"$index_t
+     gmt set   FONT_TITLE 18p
+     gmt grdcontour  ${file_bat}?total_depth -R${parameters[3]}/${parameters[4]}/${parameters[1]}/${parameters[2]} \
+                    -JM6i -A,+h  -S5   -Ncolors.cpt -B  -B+t"Bathymetry"
+     gmt plot  @points.csv     -Wfaint  -Sc0.2c   -Gred
+     gmt text  @points.csv   -F+f5p,Helvetica,black+jLT -D0.08c/-0.08c
+
+     gmt set   FONT_LABEL 12p,Helvetica
+     gmt colorbar  -DJBC+w12c/0.5c+h  -Ccolors.cpt  -Baf+l"Bathymetry [m]"
+  gmt end                                                                                                                                                    
+((index++))
+
+done  

@@ -1,0 +1,10 @@
+======================================================================
+      This is the manual of the bash script: remove_all_tmp_dir.ecf
+======================================================================
+
+The only aim of this task is to remove the mother temporary directory  
+'model_validation_tmp' ( crated in scratch ) that contains n subdirectories
+each one for every single (SHYFEM or not) simulation serial code.
+
+If the remotin can't be ultimated, an error message will be reported.
+This is the only check implemented inside this task.

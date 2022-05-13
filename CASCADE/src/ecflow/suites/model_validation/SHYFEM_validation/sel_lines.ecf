@@ -1,0 +1,152 @@
+%manual
+%include <man/sel_lines.man>
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <etc/general_shy.ini>
+
+#******************************************************************************
+#
+# DESCRIPTION:      This intermediate file has the task to extract the singles
+#                   analysis drops that satisfy the time interval and the serial
+#                   station code contained in the initialization file. Every lines
+#                   is an extraction request. All drops will be appended on the same
+#                   ASCII file. 
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - ASCII initialization_file.txt
+#                 
+#                   
+#
+# DEVELOPER:         Alex Pividori (alex.pividori@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: Bash
+#                   
+#
+# CREATION DATE:    04/10/2021
+#
+# MODIFICATIONS:    18/08/2021 --> First version 
+#                   19/08/2021 --> Speed increment by using "grep" command
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+       cd $tmp_dir_root
+
+       i=1
+       m_data_file="$data_root_dir/arpa-fvg_cruises_2014-2021.txt"
+       output_d="drops_files"
+       NumberLinesHead=40   # the header is about 40 lines. The starting point is from 41th line
+       n_lines_pre=$( wc -l < $init_file_dir/pre_initialization_file.txt )
+
+#============================================================================
+
+echo -e "\tThe number of \"drops_files\" directories that will be created is $n_lines_pre"
+echo -e "\n\t The ASCII file containing the in-situ measured data is \"$m_data_file\" "
+
+#=============================================================================
+
+for i in $( seq 1 $n_lines_pre )  # i is the variable that run on the pre_initialization_file.txt file
+do
+
+output_d="drops_files_${i}"   #rename drops_files directory
+
+#==============================================================================
+
+if [[ ! -d $output_d ]]; then
+  mkdir $output_d            
+fi
+
+if [[ -f $output_d/list_lines.txt  ]]; then
+  rm $output_d/list_lines.txt             # if present the old file will be deleted
+fi
+
+#==============================================================================
+
+while IFS=";" read -r  ser_code  date_min  date_max   # YYYY-MM-DDThh:mm:ss this is the entire date format 
+do                                                    # some pre_initialization_file.txt input generates MM-DDThh:mm:ss dates
+                                                      # which are extended to all years available
+
+#================================================== Total monitoring stations ==================================================
+
+    if [[ "$ser_code" == "tot"  ]]; then
+
+    echo -e "\n\t $i) Now I'm selecting the data from $date_min to $date_max for all monitoring station"
+
+                line_tot=0   
+
+                while IFS=$'\t' read -r -a info_val   # /tab is the separator used inside Celio's file
+                do
+                        (( line_tot = line_tot + 1 ))
+                                                     
+                        if [[ $line_tot -le $NumberLinesHead ]]; then continue ; fi  # the first 40 lines have to be skiped. The // first
+                                                                                     # two characters check is not perfect cause the 40-th
+                                                                                     # line (descriptive line) doesn't start with // but
+                                                                                     # have to be skipped 
+                                                                         
+                        if [[ ${#date_min} -lt 19 ]]; then # the entire date is 19 characters long. when the year is omitted it becomes 14 
+                        date_m="${info_val[3]#*-}"   # if in initialization_file.txt is not present the year, it means
+                                                     # that all available years have to be taken into account
+                        else
+                        date_m="${info_val[3]}"
+                        fi
+                      
+                   if  [[ "${date_m}" > "$date_min" || "${date_m}" == "$date_min" ]] \
+                   &&  [[ "${date_m}" < "$date_max" || "${date_m}" == "$date_max" ]]; then
+
+                        info_val_tmp=$( echo ${info_val[@]})
+                        echo ${info_val_tmp// /;} >> $output_d/list_lines.txt   # the default separator is the space-bar, not \t anymore
+
+                   fi
+
+                done <  $m_data_file   # I jump the first lines cause are the head of the file
+     
+    echo -e "\t The data selection process from $date_min to $date_max for all serial codes station is now finished \n"
+
+#=========================================== Selected monitoring stations =========================================================
+    else
+
+    echo -e "\n\t $i) Now I'm selecting the data from $date_min to $date_max for $ser_code monitoring station"
+    grep "$ser_code" $m_data_file  > "$output_d/list_lines_${ser_code}.txt"              # the preprocessing operation speed up to 50 times the 
+                                                                                         # velocity of the entire code
+	        while IFS=$'\t' read -r -a info_val                                      # /tab is the separator used inside Celio's file
+	        do
+
+                        if [[ ${#date_min} -lt 19 ]]; then # the entire date is 19 characters long. when the year is omitted it becomes 14
+                        date_m="${info_val[3]#*-}"   # if in initialization_file.txt is not present the year, it means
+                                                     # that all available years have to be taken into account
+                        else
+                        date_m="${info_val[3]}"
+                        fi
+
+
+		   if [[ "${date_m}" > "$date_min" || "${date_m}" == "$date_min" ]] \
+                   && [[ "${date_m}" < "$date_max" || "${date_m}" == "$date_max" ]]; then
+                        
+                        info_val_tmp=$( echo ${info_val[@]})
+        	        echo  ${info_val_tmp// /;}  >> $output_d/list_lines.txt   # the default separator is the space-bar, not \t anymore
+
+		   fi
+
+                done < $output_d/list_lines_${ser_code}.txt           
+
+    echo -e "\t The data selection process from $date_min to $date_max for $ser_code station is now finished \n"
+    rm $output_d/list_lines_${ser_code}.txt   # remotion of temporary file
+    (( i = i + 1 ))     
+    fi
+
+#===========================================================================================================================================
+
+done <  initialization_file_${i}.txt
+
+done   # end of pre_initialization_file.txt line cycle
+
+echo -e "\t The \"list_lines.txt\" file is now available in $PWD \n"
+
+%include <tail_4_bash.h> 

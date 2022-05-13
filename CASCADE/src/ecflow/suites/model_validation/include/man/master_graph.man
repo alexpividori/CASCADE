@@ -1,0 +1,66 @@
+======================================================================
+      This is the manual of the bash script: master_graph.ecf
+======================================================================
+
+"master_graph.ecf" is a script ecflow task used to manage the desired
+plots. It's functioning is similar to master_plot.ecf of the analysis
+suite. 
+Inside model_validation.def there is a loop on %PLOT_TYPE% variable ( realized
+with the "repeat" command). The PLOT_TYPE is a string variable indicating the 
+plot type you want to realize. It's value consists in a short
+significative key-word that summarizes the plot content and the 
+software used to realize it. 
+"master_graph.ecf" script consists on a big for-loop on pre_initialization_file.txt
+lines. At each cycle, a block code is launched according to the PLOT_TYPE
+value. Inside this block one or more plotters are launched passing them some
+important parameters (place, period, input_dir, output_dir).
+For this reason every PLOT_TYPE is realized for every single
+'pre_initialization_file.txt' line.
+
+====================== PLOT_TYPE format ===================
+
+It's format is:      key-word1_(key-word2)_software-name
+
+Where key-word1 is a shortcut to indicate the plot content is a 
+easy and quick way. kay-word2 is an optionally second shortcut
+to give more information upon plot content. Maybe other key-words
+could be present. 
+Software-name is insted leterally the name of the software used 
+to realize the plot. In out case is could be: NCL, GMT or R
+
+====================== PLOT_TYPE available ====================
+
+TS_diagram_NCL:       This PLOT_TYPE expressione is used to realize a
+                      TS diagram with NCL for every single drop in
+                      the time period and for monitoring stations
+                      indicated in "pre_initialization_file.txt".
+                      In the TS diagrams measured value are marked by 
+                      a trinagle and model values by a circle.
+
+boxplot_R:            This PLOT_TYPE expressione is used to realize a
+                      boxplot diagram for temperature and salinity
+                      by R software. A single box is represented for
+                      every depth interval present inside the
+                      initialization file "general.ini". The boxplot 
+                      used is the standard boxplot for R indicating
+                      mean value, 1-st and 3-rd quartile by the bottom
+                      and upper sides of the box and whiskers with 1.5
+                      interquartile (IQR) maximum length. 
+                     
+taylor_R:             This PLOT_TYPE expressione is used to realize a
+                      taylor diagram for temperature and salinity
+                      by R software. A single taylor diagram is realized
+                      for every depth interval present inside the
+                      initialization file "general.ini". If you want to
+                      take into account only a single depth-level, you
+                      have to manipulate "depth_ranges_array" inside
+                      "general.ini" according to extract only one depth
+                      level during "depth_discrimination.ecf" task.
+
+sctr_abs_R:           Shortcut for 'scatter absolute values'. 
+                      This PLOT_TYPE expressione is used to realize a
+                      scatter pot for only measured temperature and salinity
+                      by R software. The depth variable is represented along
+                      y axis with a reversed direction: increasing from the
+                      top to the bottom. Every measured valued is indicated 
+                      with a red circle on the Carthesian plane.

@@ -1,0 +1,249 @@
+#!/bin/bash
+
+#******************************************************************************
+#
+# DESCRIPTION:       This bash script is used to external from netCDF files
+#                    the vertical measure in a single point in Adriatic Sea
+#                    put the data in an external .txt file that will be 
+#                    processed by R to calculate some statistical important tests
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file
+#                     Containing whatever
+#                   - DATA ASCII file provided by Massimo Celio
+#
+# DEVELOPER:         Alex Pividori (alex.pividori@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: Bash
+#                   CDO version 1.9.8
+#
+# CREATION DATE:    16/08/2021
+#
+# MODIFICATIONS:    05/10/2021 --> Transformation into a job
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+#PBS -N sel_drops_TEMP
+#PBS -o stdout_T
+#PBS -e stderr_T
+#PBS -P CASCADE
+#PBS -W umask=0002
+#PBS -q arpa
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=02:50:00
+##PBS -m abe
+##PBS -M alex.pividori@arpa.fvg.it
+#PBS -W block=true
+
+cd %%tmp_dir_root%%
+
+     serial_code="%%serial_code%%"
+     find_arc_dir="%%find_arc_dir%%"
+     i=1
+     n_elem=0
+     time_old="0"
+     time_new="0"
+     output_d="%%drops_files_dir%%"
+     n_lines=$(wc -l < ${output_d}/list_lines.txt )
+
+#========================= Monitoring Stations names and related number ========================
+
+declare -A st_names
+
+j=1
+write_array=0
+
+  while IFS=" " read node_number serial_name
+  do
+
+        if [[ "$node_number" == '$extra'                      ]]; then write_array=1 ; continue ; fi
+        if [[ "$node_number" == '$end' && $write_array -eq 1  ]]; then write_array=0 ; break    ; fi
+
+        if [[ $write_array -eq 1  ]]; then s_name=${serial_name//\'/}  ; st_names+=(["$s_name"]=$j) ; (( j = j + 1 )) ; fi
+
+  done < $find_arc_dir/../${serial_code}.str
+
+#================================== Read SHYFEM depth levels ===================================
+
+declare -a shy_levels
+
+shy_levels[0]=0 # the first one is imposed to 0 also if itn't present in the shyfem initialization file 
+
+write_array=0
+
+  while IFS=" " read -a read_levels
+  do
+
+        if [[ "${read_levels[0]}" == '$levels'                         ]]; then write_array=1 ; continue ; fi
+        if [[ "${read_levels[0]}" == '$end'     && $write_array -eq 1  ]]; then write_array=0 ; break    ; fi
+
+        if [[ $write_array -eq 1 ]]; then  shy_levels+=(${read_levels[@]}) ; fi
+
+  done < $find_arc_dir/../${serial_code}.str
+
+#========================== Calculation of real physical depth value ==========================
+
+declare -a shy_real_lev
+
+	for (( k=0; k<=$(( ${#shy_levels[@]} - 2  )); k++ ))
+	do
+	   depth_value=$( echo "scale=2 ; ( ${shy_levels[$k]} + ${shy_levels[$(( k + 1 ))]} ) / 2 " | bc ) # approximate to 2 decimal values
+	   shy_real_lev+=( $( printf "%g" $depth_value ) )    # "%g" is used to remove unecessary decimal 0. For example convert 0.50 into 0.5
+	done
+
+    shy_real_lev[0]=0.5
+    if [[ ${#shy_levels[@]} -gt 1 ]]; then shy_real_lev[1]=1.5 ; fi   # approximation needed
+
+#===============================================================================================
+
+if [[ -f "$output_d/list_files_TEMP.txt"  ]]; then rm "$output_d/list_files_TEMP.txt"; fi
+
+#========================= A first drop measure will be extracted ===============================
+
+while [ $i -le $(( n_lines + 1 )) ] ; do           # the last cycle is necessary to launch the cdo interpolation for the last drop present 
+                                                   # inside list_lines.txt file
+
+	if [[ "$time_old" == "$time_new" ]] && [[ $i -le $n_lines ]]; then
+
+   	        ser_code=$( sed -n "${i}p"          $output_d/list_lines.txt | awk -F ";"   '{ print $7 }' )
+
+       	        time_old=$( sed -n "${i}p"          $output_d/list_lines.txt | awk -F ";"   '{ print $4 }' )
+    	        time_new=$( sed -n "$(( i + 1 ))p"  $output_d/list_lines.txt | awk -F ";"   '{ print $4 }' )
+
+      	        lat_m=$( sed -n "${i}p"             $output_d/list_lines.txt | awk -F ";"   '{ print $6 }' )
+      	        lon_m=$( sed -n "${i}p"             $output_d/list_lines.txt | awk -F ";"   '{ print $5 }' )
+
+ 	        date_time=$( sed -n "${i}p"         $output_d/list_lines.txt | awk -F ";"   '{ print $4 }' )
+
+     	        date_m=$( cut -f 1 -d "T" <<<"$date_time" )
+    	        time_m=$( cut -f 2 -d "T" <<<"$date_time" )
+
+    	        depth=$( sed -n "${i}p"             $output_d/list_lines.txt | awk -F ";"   '{ print $9  }' )
+       	        temp=$(  sed -n "${i}p"             $output_d/list_lines.txt | awk -F ";"   '{ print $10 }' )
+
+                       if [[ "$time_old" == "$time_new" ]] || [[ $i -eq $n_lines ]]; then i=$(( i + 1 )); fi
+
+ 	        n_elem=$(( n_elem + 1 ))
+
+ 	        echo "${ser_code};${lat_m};${lon_m};${date_m};${time_m};${depth};${temp}" >> "${output_d}/${ser_code}_${date_m}_${time_m}_m_TEMP.txt" 
+                                                           
+
+	else   # the measured drop is finished. Now the code pass to the model data-part
+
+	        echo -e "\n\t cdo analysis for the single drop of $ser_code station in $date_time is starting"
+
+	        n_elem=0
+	        i=$(( i + 1 ))   # i index must be incremented in the if and in the else statement
+
+#=====================================================================================
+#           Creation of comparison file from COPERNICUS MARINE netCDF files
+#=====================================================================================
+
+date_m_cont=${date_m//-/}
+
+ascii_shy_file=$( find  ${find_arc_dir}/  -name "temp.3d.${st_names["$ser_code"]}"  -type f ) 
+
+	if [[ -z "$ascii_shy_file" ]]; then 
+	echo -e "\t WARNING: The ASCII shyfem model file for \"${ser_code}_${date_m}_${time_m}_m_TEMP.txt\" in-situ measured drop is not available."
+	echo -e "\t Time period analysis required could be not satisfying. Please download or provide ${date_m} temperature ASCII file."
+	echo -e "\t This data drop will be removed and jumped to the next one"
+	rm "${output_d}/${ser_code}_${date_m}_${time_m}_m_TEMP.txt"
+        time_new="0"
+        time_old="0"
+	continue
+	fi 
+
+echo -e "\n\t ASCII TEMP file  used is \"$ascii_shy_file\" \n"
+
+#==================== Selection of nearer time model line ===================
+
+time_m_sec=$(echo $time_m | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+
+grep "$date_m"  "$ascii_shy_file" > ${output_d}/temporary_TEMP_file.txt
+
+  q=1
+  diff_min=86400    # dummy value (for example 1 day in seconds)
+
+	while IFS=" " read -a  shyfem_data
+	do
+
+        time_shy=${shyfem_data[0]#*::}   # remove the date from  2021-02-12::12:45:56 and keep only time 12:45:56
+        time_shy_sec=$( echo $time_shy | awk -F: '{ print ($1 * 3600) + ($2 * 60) + $3 }' )
+        diff=$( sed "s/-//" <<< $( expr $time_m_sec - $time_shy_sec ) ) # eliminate the eventual minus (-) sign
+
+            if [[ $diff -lt $diff_min ]]; then
+            linea_min=$q
+            diff_min=$diff
+            extr_array=( ${shyfem_data[@]/${shyfem_data[0]}} )  # remove the first element that represent the date
+            fi
+            
+        (( q = q + 1 ))
+
+	done < ${output_d}/temporary_TEMP_file.txt
+
+rm ${output_d}/temporary_TEMP_file.txt
+
+#================= Write (tmp) file with model data =============================
+
+       for (( s=0; s<${#extr_array[@]}; s++ ))
+       do
+            echo   "${shy_real_lev[$s]};${extr_array[$s]}" >> "$output_d/${ser_code}_${date_m}_${time_m}_f_TEMP.txt"
+       done
+
+#================ Elimination of not matching depth values =====================
+
+i_line=1
+i_elem=1
+
+while IFS=";" read -a m_data
+do
+
+
+     if [[ " ${shy_real_lev[@]} "  =~ " ${m_data[5]} " ]] && [[ ${i_elem} -le ${#extr_array[@]} ]]; then
+       echo $( sed -n ${i_line}p "${output_d}/${ser_code}_${date_m}_${time_m}_m_TEMP.txt" )  >> "${output_d}/${ser_code}_${date_m}_${time_m}_m1_TEMP.txt"
+       (( i_elem = i_elem + 1 ))
+     fi
+
+     (( i_line = i_line + 1  ))
+
+done < "${output_d}/${ser_code}_${date_m}_${time_m}_m_TEMP.txt"
+
+#********************************************************************************
+
+head -$(( i_elem - 1 )) "$output_d/${ser_code}_${date_m}_${time_m}_f_TEMP.txt" | cut -f 2 -d';' > "$output_d/${ser_code}_${date_m}_${time_m}_f1_TEMP.txt"
+                                                    # in case in which measured files have less depth values than model
+
+#===============================================================================
+#                PASTE the TWO files: measure and forecasts
+#===============================================================================
+
+paste -d ";" "${output_d}/${ser_code}_${date_m}_${time_m}_m1_TEMP.txt" \
+             "${output_d}/${ser_code}_${date_m}_${time_m}_f1_TEMP.txt" > "${output_d}/${ser_code}_${date_m}_${time_m//:/-}_TEMP.txt"
+
+
+echo -e "\n\t File \"${ser_code}_${date_m}_${time_m//:/-}_TEMP.txt\" is now available for forward analysis"
+
+if [[ -f $output_d/${ser_code}_${date_m}_${time_m}_m_TEMP.txt   ]]; then rm "$output_d/${ser_code}_${date_m}_${time_m}_m_TEMP.txt"; fi 
+if [[ -f $output_d/${ser_code}_${date_m}_${time_m}_f_TEMP.txt   ]]; then rm "$output_d/${ser_code}_${date_m}_${time_m}_f_TEMP.txt"; fi
+if [[ -f $output_d/${ser_code}_${date_m}_${time_m}_m1_TEMP.txt  ]]; then rm "$output_d/${ser_code}_${date_m}_${time_m}_m1_TEMP.txt"; fi
+if [[ -f $output_d/${ser_code}_${date_m}_${time_m}_f1_TEMP.txt  ]]; then rm "$output_d/${ser_code}_${date_m}_${time_m}_f1_TEMP.txt"; fi
+
+
+echo "${ser_code}_${date_m}_${time_m//:/-}_TEMP.txt" >> $output_d/list_files_TEMP.txt   # file creation with the names of the files
+
+#************** reinitialize variables ************************
+
+time_new="0"
+time_old="0"
+unset extr_array     # it is not really essential
+
+fi
+
+done
+
+echo -e "\n"

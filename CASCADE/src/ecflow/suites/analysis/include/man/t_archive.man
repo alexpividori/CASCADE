@@ -1,0 +1,89 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    Feb 08, 2017
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Archive files in a directory or in a tar file according to rules specifies in the
+   suite initializaion file
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   This node archive files in a directory or in a tar file according to rules 
+   specifies in the suite initializaion file. 
+  
+   The archive tasks are defined by means of the FAIR_ARC_ACT array.
+   Each element of the array is an archival task to be performed.
+   A task describes what actions should be taken on the files to be
+   archived. Each parameter of the action is colon (;) separated.
+   
+   Here are the roules.
+
+      declare -a FAIR_ARC_ACT                       # This is the array of tasks
+                        +--------------------------------- Action to be taken:
+                        |                                    a = cp  --> Copy files to a directory
+                        |                                    a = tar --> Create a tar archive
+                        |
+                        | +------------------------------- Compression of the archive of archived file
+                        | |                                  b = y --> Compress with gzip
+                        | |                                  b = n --> Do not compress
+                        | |
+                        | | +----------------------------- Remove original files after archival
+                        | | |                                c = y --> Remove files  (only when original and copy are the same)
+                        | | |                                c = n --> Do not remove
+                        | | |
+                        | | | +--------------------------- Add files to an existing archive or replace it
+                        | | | |                              d = y --> Add files
+                        | | | |                              d = n --> Remove archive and create a new one
+                        | | | |
+                        | | | | +------------------------- Force file copy or leave uncopied file with the same name
+                        | | | | |                            e = y --> Force copy
+                        | | | | |                            e = n --> Do not force copy
+                        | | | | |
+                        | | | | | +----------------------- Root directory where to start the search of files to be
+                        | | | | | |                        archived. This path is not reported in the achive.
+                        | | | | | |
+                        | | | | | | +----------------------- File[s] to be archived: wild characters are allowed and
+                        | | | | | | |                        recursive archival of subdirectories is the default.
+                        | | | | | | |                        Search starts from the root directory (R) parameter.
+                        | | | | | | |                        You can use $(date -u +%Y%m%d) for curren date, the same for hours
+                        | | | | | | |
+                        | | | | | | | +--------------------- Destination archive. A directory in case of multiple
+                        | | | | | | | |                      copies, a file name in case of a tar archive.
+                        | | | | | | | |
+                        | | | | | | | | +------------------- File[s] to be exluded from archive: wild characters are
+                        | | | | | | | | |                    allowed and recursive search in subdirectories is the default
+                        | | | | | | | | |                    Leave unfilled if no filter for exlusion should be applied
+                        | | | | | | | | |                    You can use $(date -u +%Y%m%d) for curren date, the same for hours
+                        | | | | | | | | |
+                        | | | | | | | | | | +--------------- Access rights in octal to be set to the archived File[s]
+                        | | | | | | | | | |                  0444 --> read only for all users; 0644 --> write for owner only
+                        | | | | | | | | | |
+                        | | | | | | | | | |               cp and tar always overwrites files with the same name and they do not work recursively
+       FAIR_ARC_ACT[0]="a;b;c;d;e;R;F;Z;X;P"
+
+      FAIR_ARC_ACT[0]="cp;y;n;n;n;${FAIR_ARC_ROOT_DIR};FARM_*$(date -u %Y%m%d)+*.nc;/tmp/F-Air/${FAIR_GEN_RUN_DATE};${FAIR_ARC_ROOT_DIR}/*.csv;0444"
+      FAIR_ARC_ACT[1]="tar;y;n;y;y;${FAIR_ARC_ROOT_DIR};farm2_oper-fcst-1.*;$HOME/${FAIR_GEN_RUN_DATE};${FAIR_ARC_ROOT_DIR}/*-145???.grid0.*;;"
+
+
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

@@ -1,0 +1,109 @@
+
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    Feb 14, 2019
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   To transfer MARINE LITTER services files to a server by means of ncftp 
+   utility.
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   You must check the MARINE LITTER product files existence, then the initia-
+   lization  files concistency. There are two initialization files you have 
+   to look at: 
+
+     a) the suite initialization file, which is hosted in the root suite 
+        directory and its name is suite_name.ini
+   
+     b) the product group initialization file, which is hosted in the etc 
+        directory of the COAST repository (i.e. COAST/GNOME/etc/) and 
+        its name is LITTER_TRAJ-params_4_%%TRAJLOC%%.ini, where %%TRAJLOC%% 
+        is the variable identifying  the GNOME products group. 
+
+   The stdout of this task reports all the steps and the variables used to 
+   get its objective, so going through it you should be able to find why it
+   has failed.
+  
+   There are no automatic switches for the task in case of it fails to run.
+ 
+   EXTENDED TASK DESCRIPTION
+   The task performes the following actions:
+
+   1) it gets the suite defined variables:  
+         FLAG_SEND  --> the user group identification string (e.g. 'PAC, ALL')
+         FTP_CLEAN  --> the flag for clening the remote area before the upload 
+                        'n' = No cleaning
+                        'y' = Cleaning
+         FTP_COMPL  --> the flag to allow the script to upload the FTP status 
+                        file. If the upload is allowed, then the file reports
+                        the "in progress status" which is put in the file name
+                        $FTP_STATUS_FILENAME of user initialization file, 
+                        otherwise it is put in defatul file: ftp_status.txt
+                        The status is in progress set just before to start the 
+                        upload, or after the cleaning, when the cleaning is 
+                        activated. The status is set completed after the 
+                        successfull file transfer.
+                        'n' = No FTP status file upload
+                        'y' = upload the FTP status
+
+ 
+   2) it checks the existence of the the suite and user initialization files and the it reads
+      the variables and the parameters required for file transfer, i. e. user,
+      passwd, area, etc.;
+
+
+   3) it looks for the files to be transferred making a list according the 
+      following criterion:
+
+
+      File list definition  type A 
+           The identification is by menas of file lists stored in files. The
+            names of the files are defined in the DIS_OUTPUT_TEMPLATE_TPL, that
+            is (DIS_OUTPUT_TEMPLATE_TPL=" ./alpha.lst /home/user/beta.lst"
+      File list definition  type B 
+            The identification is through file names templates. The template
+            are defined in DIS_OUTPUT_TEMPLATE_TPL, that is:
+            (DIS_OUTPUT_TEMPLATE_TPL="L-*.png ${DISS_ARC_ROOT_DIR}/L-*.csv"
+
+
+      The already transferred file
+      list is created when not available yet, or it is updated appending the
+      list of files already successfully transferred. The file name is created
+      in this task and it is: 
+          TRANS_LIST_FILE="${CHECK_JOB_LOG}/${FLAG_SEND}_transferred.list"
+                               |
+                               +---- This is the log directory
+      The a temporary list of not already transfer files is generated;
+
+   4) each file in the temporary list is transferred by means of ncftpput 
+      utility. At the end, if the transfer was OK the file name is appended to
+      already transferred file list; if the file was not successfully transfered
+      the it is not added;
+
+   5) in case there are files not successfully transferred then the script goes
+      again to point 3) and following the next point 4) arttempts to transfer 
+      the left files. The maximum number of trial before the leave files not 
+      transferred is set in the user initialization file $FTP_TRANSFER_RETRY_N.
+
+   Many other parameters are defined in the initialization files. Almost all of
+   then are written in the stdout at the beginning of this task execution, so 
+   you can read them in the stdout log file.
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it
+

@@ -1,0 +1,282 @@
+;*****************************************************************************
+;
+; Read currents (CUR) uo and vo from a netCDF file
+; Plot the streamlines for a specific region defined in the initialization_file.txt
+; coloring the streamlines using a palette that depends on the velocity module.
+; This script works only for Shyfem netCDF files because the names are
+; adapted to that format. If the risolution of the file is too high, the process doesn't ends
+; and an error occur with a banner indicating: segmentation fault or core dumped. This is 
+; the reason why GMT is used instead of NCL.
+;
+; The example model is "stream_11.ncl" downloadable from  
+; https://www.ncl.ucar.edu/Applications/Scripts/stream_11.ncl
+;
+;=====================================================================
+;                 ATTENTION: Problems and limitation
+;=====================================================================
+;
+;     The contour command, when overlaied on the MAP, works only for u
+;     and v matrices. At the moment you overlay the contour of sqrt(u^2 + v^2)
+;     the colors doesn't appear and you can see only the MAP and the
+;     vector field. This is a problem of NCL. To avoid this you can
+;     plot the streamlines fot COPERNICUS-Marine files or use GMT for
+;     Shyfem files. Anothe possible solution tested is to generate with CDO or NCO a 
+;     speed.nc file containing the speed module and use that for the contour plot.
+;     Shyfem nodes doesn't correspond with the NCL map. Contour can be overlaied
+;     over the map but the map can't be overlaied over the contour.
+;     The gsn_csm_vector give a lot of problems to terminate cause 
+;     the extreme high number of nodes.
+;     
+;
+;=====================================================================
+;
+; DESCRIPTION:    this NCL script is inspired by the "stream_11.ncl" NCL script
+;                 (NCL Graphics) which can be found at the following link:
+;                 "https://www.ncl.ucar.edu/Applications/Scripts/stream_11.ncl" in the section
+;                 "NCL Graphics: Streamlines".
+;                 This script, differently from the others, creates a by "gsn_csm_streamline_scalar_map"
+;                 a single (s) or a multiple (r) streamline overlying on a high resolution map 
+;                 for each line specified in an initialization file (see initialization_file.txt).
+;                
+;
+; EXTERNAL CALLS: none.
+;
+; EXTERNAL FILES: - input NetCDF data files;
+;                   (e.g. see in /lustre/arpa/AdriaClim/COPERNICUSData/..year../..month../RFVL)
+;                   
+;
+; DEVELOPER:      Alex Pividori (alex.pividori@arpa.fvg.it)
+;                 ARPA FVG - S.O.C. Stato dell'Ambiente
+;                 "AdriaClim" Interreg IT-HR project
+;
+; CREATION DATE:  16/04/2021.
+;
+;
+; NCL Version:    6.6.2
+;
+;
+; MODIFICATIONS:  16/04/2021 --->  Creation of script starting from the ncl code "contour_vec.ncl"
+;                                  The only difference is that this version is for shyfem netCDF files 
+;                                  that uses a different notation: u_velocity and v_velocity instead
+;                                  of uo and vo.
+;                                 
+;
+;******************************************************************************************************************************************************
+
+begin
+  
+; ================================>  ; PARAMETERS
+
+  depth_min =   0.    ; in m, depth of first layer to be included 
+
+;=====> initial resource settings ==========
+
+  initialization_file = "shy_initialization_file.txt"
+  init_file = asciiread( initialization_file ,-1,"string")
+
+;==================================================
+;
+;        START INIT FILE CYCLE LINES
+;
+;==================================================
+
+do a=0, dimsizes(init_file)-1     ; sycle on initialization lines
+
+
+line = str_split(init_file(a),";")
+
+         serial_name    =line(0)
+         lat_min        =line(1)
+         lat_max        =line(2)
+         lon_min        =line(3)
+         lon_max        =line(4)
+         diffusor_name  =line(5)
+         plot_type      =line(6)
+         delta_t_string =line(7)
+         level_section_string  =line(8)   ; level at which we want to draw streamlines (starting from 1, not from 0)     
+
+         delta_t = tointeger(line(7))     ; in "s" plot type it identifies the time step to plot. In "r" type it is ignored.
+         level_section = tointeger(line(8)) - 1   ; we subtract 1 because we want to select the depth_levels starting from 1
+
+delete(line)
+
+;============= addfiles =================
+
+  file_cur = "/lustre/arpa/scratch/nadri-mg_2020.hydro.nc"
+
+if (.not. fileexists(file_cur)) then
+  print("Error: Current netCDF file doesn't exists.")
+  print(""+file_cur)
+  exit
+end if
+
+  f = addfile(file_cur, "r")
+
+;========================================
+
+  time = f->time
+  time_steps = dimsizes(time)
+
+;========== Input parameter check ===================
+
+
+if ( delta_t .gt. (time_steps - 1) ) then
+   print(""+init_file(a))
+   print("Error: The delta_t parameter (eight parameter) at line "+(a+1)+" of the "+initialization_file+" is too big.")
+   continue
+end if
+
+if  ((plot_type .ne. "r") .and. (plot_type .ne. "s") )  then
+   print(""+init_file(a))
+   print("Error: The plot_type parameter (seventh parameter) at line "+(a+1)+" of the "+initialization_file+" must be equal to r (range) or s(single).")
+   continue
+end if
+
+if  ( delta_t .lt. 1 )  then
+   print(""+init_file(a))
+   print("Error: The delta_t parameter (eight parameter) at line "+(a+1)+" of the "+initialization_file+" is too small.")
+   continue
+end if
+
+
+;=========== Extraction of Depth Max ================
+
+cur_test   = f->u_velocity(0,{depth_min:1000},{lat_min:lat_max},{lon_min:lon_max})
+depth_test = f->level({depth_min:1000})
+level_num  = max( dim_num_n( .not. ismissing(cur_test) , 0 ))
+
+depth_max = depth_test(level_num - 1)
+
+delete(cur_test)
+delete(depth_test)
+
+;=======================================================
+
+time_steps = dimsizes(time)
+
+if ( plot_type .eq. "s"  ) then
+
+t_analysis  = delta_t   ; because NCL starts counting from 0
+
+n_graphs = 1            ; only 1 graph will be plotted
+
+else
+
+   n_graphs = time_steps
+
+end if
+
+n_fin  = n_graphs - 1
+
+;===========================================================
+;                START CYCLE ON GRAPHS
+;==========================================================
+
+do n=0,n_fin
+
+if ( plot_type .eq. "r") then
+
+ t_analysis = n
+
+end if
+
+  wks= gsn_open_wks("png",serial_name+"_"+"contour_shyfem"+"_"+a+"_"+plot_type+"_"+sprinti("%0.3i", n))    ; send graphics to PNG file
+
+  u      = f->u_velocity(t_analysis,level_section,{lat_min:lat_max},{lon_min:lon_max})
+  v      = f->v_velocity(t_analysis,level_section,{lat_min:lat_max},{lon_min:lon_max})
+  depth1 = f->level({depth_min:depth_max})                                                 ; extract depth
+  
+  time = f->time                                ; time of f and g should be the same (in this program). So the is no difference in using
+                                                ; f(TEMP) or g(PASAL) file
+
+;=================================================
+;              CREATION DATE VARIABLE
+;=================================================
+
+    t_1 = cd_calendar(time(t_analysis),0)  
+                                            
+    ; Year, month and day extraction
+
+    year1    = t_1(:,0)                  ; year extraction
+    month1   = t_1(:,1)                  ; month extraction 
+    day1     = t_1(:,2)                  ; day extraction
+    hour1    = t_1(:,3)             
+    minute1  = t_1(:,4)
+    
+    ; Date formatting
+
+    date1      = day1+"/"+month1+"/"+year1        ; to be used in plot's subtitles
+    date_plot1 = year1+"-"+month1+"-"+day1   ; to be used to rename output immages
+
+;=================Graphics
+
+;--- Map plot
+
+  mpres                       = True
+  mpres@gsnDraw               = False
+  mpres@gsnFrame              = False
+  mpres@gsnMaximize           = True
+  mpres@tiMainString          = "Streamlines currents at: "+date_plot1+" "+hour1+":"+minute1
+  mpres@gsnRightString        = "Depth= "+sprintf( "%3.2f"  , depth1(level_section) )+" m"     ; string at top right of the graphic
+  mpres@gsnCenterString       = "Diffusor:"+serial_name                  ; string at top center of the graphic
+  mpres@mpMinLatF             = todouble(lat_min)
+  mpres@mpMaxLatF             = todouble(lat_max)
+  mpres@mpMinLonF             = todouble(lon_min)
+  mpres@mpMaxLonF             = todouble(lon_max)
+  mpres@mpOutlineOn           = True
+  mpres@mpDataBaseVersion     = "HighRes"   ; slightly better outlines
+
+;--- Contour plot
+  
+  res                       = True
+  res@gsnDraw               = False
+  res@gsnFrame              = False
+  res@cnFillOn              = True
+  res@cnFillPalette         = "ncl_default" 
+;  res@stLineThicknessF      = 5.0         ; default value 1.0 is too thin
+;  res@stLevelSelectionMode  = "ManualLevels"
+;  res@stMinLevelValF        = -0.1
+;  res@stMaxLevelValF        = 0.1    ; the color bar contains olso the 30/40 cm/s region
+;  res@stLevelSpacingF       = 0.01
+;  res@pmTickMarkDisplayMode = "Always"    ; more detailed tickmarks
+;  res@stZeroFLabelSide      = "Bottom"
+;--- Label bar 
+
+  res@lbTitleString         = "Water velocity [m/s]"
+  res@lbTitleFontHeightF    = 0.015
+  res@lbTitlePosition       = "Bottom"
+
+;--- Vectors plot
+
+  vecres                  = True            ; vector only resources
+  vecres@gsnDraw          = False           ; don't draw
+  vecres@gsnFrame         = False           ; don't advance frame
+  vecres@vcGlyphStyle     = "CurlyVector"   ; curly vectors
+  vecres@vcRefMagnitudeF  = 0.2            ; define vector ref mag
+  vecres@vcRefLengthF     = 0.045 
+  vecres@vcMinDistanceF   = 0.015            ; if the vector field is too dense, this is the
+                                            ; minimum distance between each other (to reduce the density)
+                                            ; expressed in Nord Degrees Centigrades. It is used for Shyfem data.
+
+
+  speed = sqrt(u^2 + v^2)
+;  map = gsn_csm_map(wks, mpres)
+  contour = gsn_csm_contour(wks, speed , res)   
+  vec = gsn_csm_vector(wks,u,v,vecres)
+ 
+ ; overlay(map,contour)
+  overlay(contour,vec)
+
+  draw(contour)  
+  frame(wks)  
+
+  delete(u)
+  delete(v)
+
+end do    ; end of cycle on the graphs
+                                              
+  delete(depth1)           ; in the next line the region of interest changes (different lat/lon)
+
+end do   ; end of cycle on the initialization_file lines
+
+end

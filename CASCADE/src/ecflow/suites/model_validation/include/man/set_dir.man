@@ -1,0 +1,29 @@
+======================================================================
+      This is the manual of the bash script: set_dir.ecf
+======================================================================
+
+The main aim of this .ecf script is to prepare the temporary directory
+"/model_validation_tmp" inside the /scratch section 
+used to realize the entire suite operations.
+
+The "model_validation_tmp" directory is screated. If already present 
+it is deleted and then recreated. Inside this temporary directory
+all useful R, NCL, bash script or jobs are copied from 
+/lustre/arpa/CASCADE/src/model_validation/scripts to model_validation_tmp.
+
+A set of drops_files_# and selected_depths_# directories are created to
+put the output ASCII files collecting the selected measured and 
+model data. The # indicate the natural number corresponding to the 
+'pre_initialization_file.txt' line that is related to. For example
+the first pre_initialization_file.txt line data will be contained inside
+drops_files_1 and selected_depths_1.
+
+A multi-check is performed. One for creation dir, one for eventual remotion
+and one for copying scripts inside that. If only one operation will fail, 
+an ERROR message is reported and the task will be aborted.
+
+Another functionality of this task is to create (if doesn't exists) the 
+tree of directories used to archive the single simulation validation 
+plots inside '/lustre/arpa/CASCADE/public_html/SHYFEM_1995F100D0_ABXX_validation'.
+To share the results on a public web-pahe, is also created an html
+page accessible on the CASCADE project web-site.

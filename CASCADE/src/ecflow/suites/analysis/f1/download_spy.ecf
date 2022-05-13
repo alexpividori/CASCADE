@@ -1,0 +1,101 @@
+%manual
+%include <man/download_spy.man>                            # Specific manual for this task
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <etc/general.ini>
+
+   DATE=%ECF_DATE%
+  DATEB=$(date -u -d "$DATE $bulletin_date_delta" +%%Y%%m%%d)
+  YYYYB=${DATEB:0:4}
+    MMB=${DATEB:4:2}
+    DDB=${DATEB:6:2}
+
+module load $cdo_module  &>/dev/null
+
+directory_AMXL="$input_dir_cut_root/$YYYYB/$MMB/$DDB/AMXL"
+directory_ASVL="$input_dir_cut_root/$YYYYB/$MMB/$DDB/ASVL"
+directory_PSAL="$input_dir_cut_root/$YYYYB/$MMB/$DDB/PSAL"
+directory_RFVL="$input_dir_cut_root/$YYYYB/$MMB/$DDB/RFVL"
+directory_TEMP="$input_dir_cut_root/$YYYYB/$MMB/$DDB/TEMP"
+
+directory_daily="$input_dir_cut_root/$YYYYB/$MMB/$DDB"
+
+if [ -d $directory_daily ] ; then
+  echo "The directory $directory_daily exists, the complete-files-check process has been started "
+  echo "I'm going into $directory_daily"
+  cd $directory_daily || echo "The passage to $directory_daily can't be done" 
+
+#===================== Complete download check ======================================
+
+GOON=0       # if at least 1 netCDF file is corrupted, if become equal to 1
+SFILE=0      # it is 1 for every file corrupted. Every check it is re-setted to 0
+
+for folder in * ; do 
+  cd $folder 
+  echo "Running $folder"
+        for file in $( ls ); do 
+           cdo sinfo $file &>/dev/null || SFILE=1
+           if [ $SFILE -ne 0 ]; then         
+             echo "error: Something is gone wrong using cdo to \"$file\" inside \"$folder\""   
+             GOON=1
+             SFILE=0   # reset the SFILE variable check to find other files corrupted.
+           fi
+        done
+  cd .. 
+done
+
+#=====================================================================================
+
+if [ $GOON -eq 0 ]; then
+
+  if [ -d $directory_AMXL ] && [ $( du -k $directory_AMXL | awk '{ print $1 }' ) -gt 50000 ]; then
+    echo "The directory $directory_AMXL exists, the cut process has been launched "
+    ecflow_client --event=AMXL
+  else
+    echo "The directory $directory_AMXL doesn't exist or the files were not downloaded completely"
+  fi
+
+  if [ -d $directory_ASVL ] && [ $( du -k $directory_ASVL | awk '{ print $1 }' ) -gt 60000 ]; then
+    echo "The directory $directory_ASVL exists, the cut process has been launched "
+    ecflow_client --event=ASVL
+  else
+    echo "The directory $directory_ASVL doesn't exist or the files were not downloaded completely"
+  fi
+
+  if [ -d $directory_PSAL ] && [ $( du -k $directory_PSAL | awk '{ print $1 }' ) -gt 4000000 ]; then
+    echo "The directory $directory_PSAL exists, the cut process has been launched "
+    ecflow_client --event=PSAL
+  else
+    echo "The directory $directory_PSAL doesn't exist or the files were not downloaded completely"
+  fi
+
+  if [ -d $directory_RFVL ] && [ $( du -k $directory_RFVL | awk '{ print $1 }' ) -gt 14000000 ]; then
+    echo "The directory $directory_RFVL exists, the cut process has been launched "
+    ecflow_client --event=RFVL
+  else
+    echo "The directory $directory_RFVL doesn't exist or the files were not downloaded completely"
+  fi
+
+  if [ -d $directory_TEMP ] && [ $( du -k $directory_TEMP | awk '{ print $1 }' ) -gt 5000000 ]; then
+    echo "The directory $directory_TEMP exists, the cut process has been launched "
+    ecflow_client --event=TEMP
+  else
+    echo "The directory $directory_TEMP doesn't exist or the files were not downloaded completely"
+  fi
+
+else
+     echo -e "\t The cut process can't be launched right now. We will try in 15 minutes.\n"
+fi
+
+#******************** the directory doesn't exist yet ***********************************
+
+else
+     echo -e "\t The directory $directory_daily doesn't exist yet. We will try in 15 minutes.\n"
+fi
+
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       ow_client --event=PSA calls to ecflow client

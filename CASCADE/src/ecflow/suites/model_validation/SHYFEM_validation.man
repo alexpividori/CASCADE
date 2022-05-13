@@ -1,0 +1,24 @@
+===============================================================
+           GENERAL MANUAL for CMEMS Validation family
+===============================================================
+
+The entire family CMEMS_validation is used to perform a multi-plot
+validation analysis on COPERNICUS Marine oceanographic model.
+
+The reference data-set of comparison is constituted by an ASCII
+file collecting the entire in-situ monitoring measures. This 
+measured has been performed by Massimo Celio's theme from arpa-FVG
+in the time period from 2014 to 2021.
+
+To insert the inputs geographical region and time period desired to 
+perform the validation is sufficient to edit the 'pre_initialization_file.txt'
+To have more information on this operation, please consult the manual
+of "genesis_initialization_file.ecf" task. 
+
+Other model validations will be performed with a similar family.
+The only difference will be present in the serching netCDF of other 
+data formats files part ( present inside the two jobs throw by 
+sel_data_TEMP_PSAL.ecf task ). 
+
+Consulta the include/etc/general.ini initialization file to
+check your paths. 

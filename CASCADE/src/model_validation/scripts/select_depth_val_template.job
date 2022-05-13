@@ -1,0 +1,148 @@
+#!/bin/bash
+
+#******************************************************************************
+#
+# DESCRIPTION:       This bash script is used to external from netCDF files
+#                    the vertical measure in a single point in Adriatic Sea
+#                    put the data in an external .txt file that will be
+#                    processed by R to calculate some statistical important tests
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file
+#                     Containing whatever
+#                   - DATA ASCII file provided by Massimo Celio
+#
+# DEVELOPER:         Alex Pividori (alex.pividori@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: Bash
+#                   CDO version 1.9.8
+#
+# CREATION DATE:    16/08/2021
+#
+# MODIFICATIONS:    05/10/2021 --> Transformation into a job
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+#PBS -N sel_depths
+#PBS -o stdout_depth
+#PBS -e stderr_depth
+#PBS -P CASCADE
+#PBS -W umask=0002
+#PBS -q arpa
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:20:00
+##PBS -m abe
+##PBS -M alex.pividori@arpa.fvg.it
+#PBS -W block=true
+
+        cd %%tmp_dir_root%%
+
+    depth_dir="%%selected_depths_dir%%"
+     output_d="%%drops_files_dir%%"
+origin_file_T="TEMP_total_data.txt"
+origin_file_P="PSAL_total_data.txt"
+
+#=================================================
+
+depth_vals=%%depth_ranges_array%%   # depth values that discriminate the statistics
+num_vals=${#depth_vals[@]}                        # by now the only leyers number available are 3,4,5 and 6
+
+#=========== Temperature remotion files ============
+
+if [ -f $depth_dir/selected_T_files_bydepth.txt ]; then
+rm $depth_dir/selected_T_files_bydepth.txt
+echo -e "\nI removed the file \"$depth_dir/selected_T_files_bydepth.txt\""
+fi
+
+rm -f $depth_dir/TEMP_depth_*_*.txt || ERROR  # remove the entire set of TEMP files produced before
+echo "I removed the file \"$depth_dir/TEMP_depth_*_*.txt\""
+
+#=========== Salinity remotion files ============
+
+if [ -f $depth_dir/selected_S_files_bydepth.txt ]; then
+rm $depth_dir/selected_S_files_bydepth.txt
+echo -e "\nI removed the file \"$depth_dir/selected_S_files_bydepth.txt\""
+fi
+
+rm -f $depth_dir/PSAL_depth_*_*.txt || ERROR  # remove the entire set of PSAL files produced before
+echo "I removed the \"$depth_dir/PSAL_depth_*_*.txt\" files"
+
+#=================== Temperature depths selection ==============================
+
+echo -e "\n Temperature data selection by depths ranges is starting right now"
+
+for i in $(seq 0 1 $(( num_vals - 2 )) )
+do
+
+data_pres=0
+ind_l=1                                             # index line
+
+         while IFS=';' read -r -a info_val   # ";" is the separator used inside Celio's file
+         do
+                   
+            if [[ $( awk -v num1=${info_val[5]} -v num2=${depth_vals[$i]}           'BEGIN{ print  (num1>=num2) ? "TRUE" : "FALSE"}') == "TRUE" ]] && \
+               [[ $( awk -v num1=${info_val[5]} -v num2=${depth_vals[$(( i + 1 ))]} 'BEGIN{ print   (num1<num2) ? "TRUE" : "FALSE"}') == "TRUE" ]] && \
+               [[ "${info_val[7]}" != "1e+20" ]]; then
+
+                      sed "${ind_l}q;d" $output_d/$origin_file_T >> $depth_dir/TEMP_depth_${depth_vals[$i]}_${depth_vals[$(( i + 1 ))]}.txt 
+                      data_pres=1                    
+            fi
+
+              ind_l=$(( ind_l + 1 ))
+
+         done < $output_d/$origin_file_T
+
+if [[ $data_pres -eq 1  ]]; then
+      echo "TEMP_depth_${depth_vals[$i]}_${depth_vals[$(( i + 1 ))]}.txt;${depth_vals[$i]};${depth_vals[$(( i + 1 ))]}" \
+      >> $depth_dir/selected_T_files_bydepth.txt
+      data_pres=0
+fi
+
+echo -e "\n\t  $(( i + 1 )) of $(( num_vals - 1 )) for Temperature complete!"
+
+done
+
+#=================== Salinity depths selection ==============================
+
+echo -e "\n Salinity data selection by depths ranges is starting right now"
+
+for i in $(seq 0 1 $(( num_vals - 2 )) )
+do
+
+ind_l=1    
+data_pres=0                                         # index line
+
+         while IFS=';' read -r -a info_val   # ";" is the separator used inside Celio's file
+         do
+
+            if [[ $( awk -v num1=${info_val[5]} -v num2=${depth_vals[$i]}           'BEGIN{ print (num1>=num2) ? "TRUE" : "FALSE"}') == "TRUE" ]] && \
+               [[ $( awk -v num1=${info_val[5]} -v num2=${depth_vals[$(( i + 1 ))]} 'BEGIN{ print  (num1<num2) ? "TRUE" : "FALSE"}') == "TRUE" ]] && \
+               [[ "${info_val[7]}" != "1e+20" ]]; then
+
+               sed "${ind_l}q;d" $output_d/$origin_file_P >> $depth_dir/PSAL_depth_${depth_vals[$i]}_${depth_vals[$(( i + 1 ))]}.txt
+               data_pres=1
+            fi
+
+              ind_l=$(( ind_l + 1 ))
+
+         done < $output_d/$origin_file_P
+
+if [[ $data_pres -eq 1  ]]; then
+     echo "PSAL_depth_${depth_vals[$i]}_${depth_vals[$(( i + 1 ))]}.txt;${depth_vals[$i]};${depth_vals[$(( i + 1 ))]}" \
+     >> $depth_dir/selected_S_files_bydepth.txt
+     data_pres=0
+fi
+
+
+echo -e "\n\t  $(( i + 1 )) of $(( num_vals - 1 )) for Salinity complete!"
+
+done
+
+#================================================================================
+
+echo -e "\t\n Selection data by depth finished !\n"

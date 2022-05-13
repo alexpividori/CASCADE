@@ -1,0 +1,80 @@
+%manual
+%include <man/paste_append_drops.man>
+%end
+
+%include <head_4_bash.h>
+
+%include <etc/general.ini>
+
+#******************************************************************************
+#
+# DESCRIPTION:      This really simple bash script is used to take all the 
+#                   drop .txt file that are inside COPERNICUS domain 
+#                   ( indicated in a CSV file calle "initialization_file_TS_ncl.txt" )
+#                   and append each one by one in a single file: one for TEMP and one for PSAL
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - ASCII initialization_file.txt
+#
+#
+#
+# DEVELOPER:         Alex Pividori (alex.pividori@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: Bash
+#
+#
+# CREATION DATE:    02/09/2021
+#
+# MODIFICATIONS:    02/09/2021 --> This code was born
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+#===================== Setting variables =========================
+
+       cd $tmp_dir_root
+
+#=================================================================
+
+for i in $( seq 1 $(wc -l < $init_file_dir/pre_initialization_file.txt )  )
+do
+
+        output_d="drops_files_$i"
+
+#************************ TEMP and PSAL paste phase ***************************
+
+if [ ! -f $output_d/list_files_TEMP.txt  ]; then 
+    echo -e "\t\n WARNING: \"$output_d/list_files_TEMP.txt\" doesn't find. NO data available. Maybe in-situ measures or model data have not been found."
+    ERROR
+fi
+
+if [ ! -f $output_d/list_files_PSAL.txt  ]; then
+    echo -e "\t\n WARNING: \"$output_d/list_files_PSAL.txt\" doesn't find. NO data available. Maybe in-situ measures or model data have not been found."
+    ERROR
+fi
+
+	paste -d ";"  $output_d/list_files_TEMP.txt $output_d/list_files_PSAL.txt > $output_d/list_files_TEMP_PSAL.txt
+	echo -e "\n\t \"list_files_TEMP_PSAL.txt\" file has been created \n"
+
+#******************************************************************************
+
+if [ -f $output_d/TEMP_total_file.txt ]; then rm $output_d/TEMP_total_file.txt ; echo "\"TEMP_total_file.txt\" file has been prevently removed"; fi
+if [ -f $output_d/PSAL_total_file.txt ]; then rm $output_d/PSAL_total_file.txt ; echo "\"PSAL_total_file.txt\" file has been prevently removed"; fi
+
+   while IFS=";" read   TEMP_file PSAL_file
+   do
+
+	cat $output_d/$TEMP_file >> $output_d/TEMP_total_data.txt
+	cat $output_d/$PSAL_file >> $output_d/PSAL_total_data.txt
+
+   done < $output_d/list_files_TEMP_PSAL.txt
+
+done
+
+echo "Files \"TEMP_total_file.txt\" and \"PSAL_total_file.txt\"  has been created"
+
+%include <tail_4_bash.h>

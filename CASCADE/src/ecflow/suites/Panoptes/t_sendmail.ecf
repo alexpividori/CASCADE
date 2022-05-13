@@ -1,0 +1,216 @@
+%manual
+%include <man/general.man>                              # General manual for all task in this suite
+%include <man/t_sendmail.man>                           # Specific manual for this task
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks. 
+                                                        # It manages general calls to ecflow client
+
+
+%include <qsub_4_bash.h>                                # Include the function managing the jobs
+                                                        # submission to the queue
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+
+    echo -e "\n\n\t\tSEND E-MAILS TO A LIST OF USERS\n"
+    EXIT_STATUS=0                    # set default exit status everything OK
+    WHOGET="%WHOGET:NULL%"           # Load the FAMILY variable 
+#
+# Check whether suite initialization file exists
+#
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE% not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE% found.\n"
+    fi
+#
+# Load suite initialization file 
+#
+    . %SUITE_INI_FILE% || EXIT_STATUS=1
+    if [[ $EXIT_STATUS -ne 0 ]];then echo -e "\n\n\tWARNING PROBLEMS IN THIS TASK - PLEASE CHECK \n\n";fi
+#
+# Check whether FAMILY initialization file exists. It should be stored in BACKUP_INI_FILE
+#
+  FAMILY_INI_FILE="$(echo ${BACKUP_INI_FILE} | sed s/%%WHOGET%%/${WHOGET}/g)"
+  if [[ ! -e $FAMILY_INI_FILE ]]; then
+     echo -e "\n\tERROR!!!! FAMILY initialization file FAMILY_INI_FILE=${FAMILY_INI_FILE} not found!!!\n"
+     EXIT_STATUS=1 ; ERROR
+  else
+     echo -e "\tFAMILY initialization file FAMILY_INI_FILE=${FAMILY_INI_FILE} found.\n"
+  fi
+#
+# Load FAMILY initialization file 
+#
+    . $FAMILY_INI_FILE || EXIT_STATUS=1
+    if [[ $EXIT_STATUS -ne 0 ]];then echo -e "\n\n\tWARNING PROBLEMS IN THIS TASK - PLEASE CHECK \n\n";fi
+#
+# Some consistency check before to continue
+#
+  DATES="$(date -u +%%Y%%m%%d)"         # Define today                                              
+  if [[ "${BACKUP_DATE:=NULL}" != "${DATES}" ]];then
+     echo -e "\n\tWARNING CURDATE differs form DATES!!!!\n\t\tCURDATE="${BACKUP_DATE}"\n\t\tDATES=${DATES}\n"
+  else
+     echo -e "\n\tCURDATE equals DATES\n\t\tCURDATE="${BACKUP_DATE}"\n\t\tDATES=${DATES}\n"
+  fi 
+#
+# Load parameters useful for the whole node
+#
+  MAIL_NOTIFY=${WHOGET}                                                                       # Load the suite variable required for notification
+  EMAIL_INI_FILE="$(echo $BACKUP_MSG_FINI | sed -e s/%%WHOGET%%/${WHOGET}/g)"                 # and define de email initialization file 
+  EMAIL_INI_FILE="$(echo $EMAIL_INI_FILE  | sed -e s/%%MAIL_NOTIFY%%/$MAIL_NOTIFY/g)"         # 
+  BACKUP_WORK_DIR="$(echo ${BACKUP_WORK_DIR} | sed -e s/%%WHOGET%%/${WHOGET}/g)"              # Root directory for notification messages generation 
+  EMAIL_TMP_DIR="${BACKUP_WORK_DIR}/$(mktemp -u mail_notify.XXXXX)"                           # Temporary directory for notification messages generation 
+#
+#
+# Check the existence of all files required the notification         
+#
+#
+    echo -e "\n\tI am looking for the notify initialization file.\n\tIt is a YAML file: $EMAIL_INI_FILE\n"
+    if [[ ! -e $EMAIL_INI_FILE ]]; then
+       echo -e "\n\tERROR!!!! Notification file EMAIL_INI_FILE=$EMAIL_INI_FILE not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\tEmail notification file EMAIL_INI_FILE=$EMAIL_INI_FILE found.\n"
+    fi
+#
+# Create the temporary directory for messages preparation            
+#
+    if [[ ! -d $EMAIL_TMP_DIR  ]];then mkdir -p $EMAIL_TMP_DIR;fi  # Create temporary directory for email messages preparation
+    echo -e "\tCreaded temporary directory: $EMAIL_TMP_DIR"
+    cd $EMAIL_TMP_DIR
+    echo -e "\tCurrently I am in the temporary directory: $(pwd)"
+#
+#   Retrieve mandatory information
+#   The required file is a YAML file and the mandatory information should be:
+#
+#
+#   a) address_to   -->  the list of addresses separated by comma or spaces;
+#   b) subject_txt  -->  the subject of the message. A string between quotes;
+#   c) message_body -->  the body of the message.
+# 
+    MANDATORY_INFO=0     # Set the mandatory information flag to default status (0=OK everything ready to send)
+    ADDRESS_TO="$(grep   "^address_to"   $EMAIL_INI_FILE | cut -d ":" -f 2-)" || MANDATORY_INFO=1
+    SUBJECT_TXT="$(grep  "^subject_tx"   $EMAIL_INI_FILE | cut -d ":" -f 2- |  sed -e s/%%WHOGET%%/${WHOGET}/g)" || MANDATORY_INFO=1
+    MESSAGE_BODY="$(sed -e ':INISTART;/\\$/{N;bINISTART};s/\\\n//g' $EMAIL_INI_FILE|grep "^message_body"|cut -d ":" -f 2- | \
+                    sed 's/  */ /g' | sed -e s/%%WHOGET%%/${WHOGET}/g)" || MANDATORY_INFO=1
+                 
+
+    if [[ $MANDATORY_INFO -ne 0 ]];then  
+       echo -e "\n\n\tWARNING!!!! Impossible to send e-mail notifications because at least one of the mandatory fields is missing\n"
+    else
+       echo -e "\n\n\tReady to send e-mail notifications. All the mandatory fields are available\n"
+    fi
+    cat <<EOF
+        a) address_to   -->  ${ADDRESS_TO:-NULL}
+        b) subject_txt  -->  ${SUBJECT_TXT:-NULL} 
+        c) message_body -->  ${MESSAGE_BODY:-NULL} 
+EOF
+# 
+# 
+#   Retriueve optional information f available
+#
+#   d) address_cc   -->  the list of addresses for CC. Addresses separated by comma or spaces;
+#
+    OPTIONAL_INFO=0     # Set the mandatory information flag to default status (0=OK everything ready to send)
+    ADDRESS_CC="$(grep   "^address_cc"      $EMAIL_INI_FILE | cut -d ":" -f 2-)" || OPTIONAL_INFO=1
+    if [[ $OPTIONAL_INFO -eq 0 ]];then 
+       ADDRESS_CC_TMP=""
+       for CC in $ADDRESS_CC; do  
+           ADDRESS_CC_TMP="${ADDRESS_CC_TMP} -c ${CC}"
+       done
+       ADDRESS_CC="$ADDRESS_CC_TMP"
+    fi
+#
+#   e) address_bcc  -->  the list of addresses for BCC. Addresses separated by comma or spaces;
+#
+    OPTIONAL_INFO=0     # Set the mandatory information flag to default status (0=OK everything ready to send)
+    ADDRESS_BCC="$(grep  "^address_bcc"     $EMAIL_INI_FILE | cut -d ":" -f 2-)" || OPTIONAL_INFO=1
+    if [[ $OPTIONAL_INFO -eq 0 ]];then 
+       ADDRESS_BCC_TMP=""
+       for BCC in $ADDRESS_BCC; do  
+           ADDRESS_BCC_TMP="${ADDRESS_BCC_TMP} -b ${BCC}"
+       done
+       ADDRESS_BCC="$ADDRESS_BCC_TMP"
+    fi
+
+#
+#   f) attach_files -->  the list of files to be attached to the message;                         
+#
+    OPTIONAL_INFO=0     # Set the mandatory information flag to default status (0=OK everything ready to send)
+    ATTACH_FILES="$(grep "^attach_files"    $EMAIL_INI_FILE | cut -d ":" -f 2- | sed -e s/%%WHOGET%%/${WHOGET}/g)" || OPTIONAL_INFO=1
+    if [[ $OPTIONAL_INFO -eq 0 ]];then 
+       ATTACH_FILES_TMP=""
+       for ATF in $ATTACH_FILES; do  
+           if [[ -e ${ATF} ]];then  ATTACH_FILES_TMP="${ATTACH_FILES_TMP} -a ${ATF}";fi
+       done
+       ATTACH_FILES="$ATTACH_FILES_TMP"
+    fi
+
+    echo -e "\n\tOptional fields are:\n"
+    cat <<EOF
+        d) address_cc   -->  ${ADDRESS_CC:-NULL}
+        e) address_bcc  -->  ${ADDRESS_BCC:-NULL} 
+        f) attach_files -->  ${ATTACH_FILES:-NULL} 
+EOF
+#
+#
+#  Message preparation    
+#  
+   if [[ $MANDATORY_INFO -eq 0 ]];then
+       SUBJECT_TXT="${SUBJECT_TXT} from family: ${MAIL_NOTIFY}"   # Add to the subject the notification family
+       TEXT_TO_SEND="$(pwd)/file_message_to_send.txt"
+       #
+       # Generate the body of the message
+       #
+       # This is the header
+       #
+
+       cat << EOF > $TEXT_TO_SEND
+   -------------------------------
+   This is the e-mail notification
+   issued by the ARPA FVG -CRMA
+   operative flow driven by ecFlow 
+
+   Flow details are:
+          SUITE:  %SUITE%
+          FAMILY: %FAMILY%
+          TASK:   %TASK% 
+
+   Message sent:   $(date -u) UTC
+   User in charge: $(id)             
+   -------------------------------
+
+   MESSAGE DETAILS:
+EOF
+       #
+       # This is the body from the initialization file 
+       #
+       echo -e "$(eval echo -e ${MESSAGE_BODY//\\/\\\\})" >> $TEXT_TO_SEND  
+       #  
+       #  
+       #  
+       #  Send emails right now  
+       #  
+       MAIL_OPTIONAL_ARGS="${ADDRESS_CC:-""} ${ADDRESS_BCC:-""} ${ATTACH_FILES:-""}"
+       mail -s "${SUBJECT_TXT}" ${MAIL_OPTIONAL_ARGS} ${ADDRESS_TO} < $TEXT_TO_SEND   || echo -e "\n\n\tERROR IN SENDING E-MAILS\n\n"
+    fi
+#
+#  Verbose the message sent
+#
+   echo -e "\n\tThe sent message is the following:\n"
+   cat  $TEXT_TO_SEND
+   echo -e "\t====================================\n\n"
+
+#
+# Remove the temporary directory for messages preparation            
+#
+    if [[ -d $EMAIL_TMP_DIR  ]];then rm -Rv $EMAIL_TMP_DIR | sed -e s/^/\\t/g ;fi  # Remove temporary directory for email messages preparation
+  
+    EXIT_STATUS=$?
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks. 
+                                       # It manages general calls to ecflow client

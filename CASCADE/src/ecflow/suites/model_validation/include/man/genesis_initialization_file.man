@@ -1,0 +1,125 @@
+======================================================================
+This is the manual of the bash script: genesis_initialization_file.ecf
+======================================================================
+
+The aim of this script is to read the pre_initialization_file.txt lines
+and create an initialization_file_1.txt, initialization_file_2.txt ...
+for every single line present in pre_initialization_file.txt. The difference between 
+pre_initialization_file.txt and initialization_file_#.txt is that 
+pre_initialization_file.txt is a compress file that contains only two
+simple keywords separated by a ";" (semicolon). The first parameter 
+indicate the domain of stations you want to analize and the latter the 
+time period considered. The first line will produce the initialization_file_1.txt,
+the secondo the initialization_file_2.txt, the third initialization_file_3.txt and so on.
+
+genesis_initialization_file.txt is the intermediary between pre_initialization_file.txt
+and initialization_file_#.txt. For this reason is important to know how 
+genesis_initialization_file.txt interpretate the key-words present in 
+pre_initialization_file.txt. The two key words divide in group and time-periods:
+
+======================================================================
+                          GROUP PARAMETER
+======================================================================
+
+This is the first argument present in the first column in pre_initialization_file.txt
+The key-words used are the following:
+
+tot:      This mean the totality of stations. In this way all the stations are taken 
+          in analysis. "genesis_initialization_file.ecf" will report the key-word "tot"
+          inside the first argument of "initialization_file_#.txt" and then the "sel_lines.ecf"
+          reading "tot" for the group parameter won't consider the station_name as a 
+          discriminant for selection. It will consider only the time interval.
+
+group1:   According to the stations grouping of Massimo Celio, the group1 is a typology
+          of Northern Adriatic sea selection. This group collect the stations 
+          near the Marano-Grado lagoon ( belonging to the COPERNICUS-Marine domain ) 
+          and that could be influenced by th in and out lagoon currents. The station names
+          of "group1" are present in "stations_file_group1.txt" inside the 
+          "/lustre/arpa/CASCADE/src/model_validation/scripts" directory.
+          ATTENTION: could be presents some stations that apparently doesn't exists (that
+          doesn't have a counter part in the catalogue of "http://www.arpaweb.fvg.it/mamc/gmapsmamc.asp").
+          Two examples are M111 and SNLG3. The reason is that inside in-situ measures
+          data file "arpa-fvg_cruises_2014-2021.txt" are present some human mistakes. In 
+          particular some station are writed in a wrong way: for example somewhere is 
+          indicated "M111" instead of "ME111". To take count of that mistakes in some 
+          "stations_file_group#.txt" files is included also the station in the wrong version.
+
+group2:   According to the stations grouping of Massimo Celio, the group2 is a typology
+          of Northern Adriatic sea selection. This group collect the stations
+          near the Timavo and Isonzo mouth and other minor rivers and canals. The station names
+          of "group2" are present in "stations_file_group2.txt" inside the
+          "/lustre/arpa/CASCADE/src/model_validation/scripts" directory.
+
+group3:   According to the stations grouping of Massimo Celio, the group3 is a typology
+          of Northern Adriatic sea selection. This group collect the stations
+          near the Slovenian and Croatian coasts. These station are the most deep and far from the coast.
+          The station names of "group3" are present in "stations_file_group3.txt" inside the
+          "/lustre/arpa/CASCADE/src/model_validation/scripts" directory.
+
+station_name: For a more specific analysis, it is also possible to insert the esplicit station_name
+              like ME111, P555, SMNG1 ecc. That field parameter will be reported identical in the
+              initialization file.
+
+IMPORTANT:
+If you want to analize together a set of stations that doesn't correspond to group1, group2 or group3, is
+preferible to create a new "stations_file_group#.txt" inside "/lustre/arpa/CASCADE/src/model_validation/scripts"
+that collect together the desired stations set. After that you have to insert that option inside
+"genesis_initialization_file.ecf". This script version doesn't support other kind of solutions.
+
+Other station groups could be added simply by creating a new "stations_file_group#.txt" file
+anf modifying the the "genesis_initialization_file.ecf" script
+
+======================================================================
+                          TIME INTERVAL PARAMETER
+======================================================================
+
+tot:      This mean the total time period that will be analysed. The in-situ measures
+          data file "arpa-fvg_cruises_2014-2021.txt" goes from 2014 to July 2021. However
+          the netCDF COPERNICUS-Marine files downloaded always doesn't correspond with  
+          time period of in-situ measures ASCII data file. The actual "genesis_initialization_file.ecf"
+          version is reported to 2020-07/2021-07 time period cause tha CMEMS files available
+          are that. 
+
+season1:  According to the seasons splitting of Massimo Celio, the season1 correspond to 
+          the first quarter of the year (January-Febrary-March).
+
+season2:  According to the seasons splitting of Massimo Celio, the season1 correspond to
+          the second quarter of the year (April-May-June).
+
+season3:  According to the seasons splitting of Massimo Celio, the season1 correspond to
+          the third quarter of the year (July-August-September).
+
+season4:  According to the seasons splitting of Massimo Celio, the season1 correspond to
+          the fourth quarter of the year (October-November-December).
+
+1S     :  First semester of the year (from January to June)
+
+2S     :  Second semester of the year (from July to December)
+
+IMPORTANT: For generic time intervals (season1,2,3,4, 1S, 2S and tot) it is implied that all available years will
+be considered. For example season1 will select the months Jenuary-Febrary-March indipendently by the years (for Celio's
+ASCII file, years goes from 2014 to 2021). If you want to select season1 only for a particular year,
+please use the following explicit initialization form. 
+
+YYYY-MM-DDThh:mm:ss_YYYY-MM-DDThh:mm:ss       :  If you want to indicate esplicitly the time period, the 
+                                                 format is in this format. The first date YYYY:MM:DDThh:mm:ss
+                                                  is the initial 
+                                                 time and the second the final. Remember to use an underscore
+                                                 "_" to separete the two date. The "T" letter instead separate 
+                                                 the date from the hours. For  example the time period
+                                                 2021-01-01T00:00:00_2021-03-23T22:32:12 
+                                                  goes from the 1-st January of 2021 ( at midnight )
+                                                 to the 3-rd of March ( at 22:32:12  ) 
+                                                 2021. The extreme intervals are ALWAYS included. Indeed the 
+                                                 "sel_lines.ecf" script make a "<=" t2 and ">=" t1 
+                                                 check comparation.
+
+
+
+
+
+
+
+
+
+

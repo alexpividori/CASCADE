@@ -1,0 +1,40 @@
+======================================================================
+      This is the manual of the bash script: sel_lines.ecf
+======================================================================
+
+Tipical run-time: 0-1 minute
+
+The main aim of this .ecf script is to realize the first important step
+for the selection of analysis data.  
+
+This code read the initialization_file_#.txt (one for each 
+pre_initialization_file.txt line) and extract from measured ascii file
+( arpa-fvg_cruises_2014-2021.txt  ) the data lines that satisfy
+the constraints contained inside 'initialization_file_#.txt'.
+In particular it checks the monitoring station name and the time of 
+measurement. If these information are included inside intialization file,
+the corresponding line is selected and saved into a macro ascii file 
+called "list_lines.txt". The CSV format is changed from a tab separator
+used inside arpa-fvg_cruises_2014-2021.txt to a ";" separator used
+inside "list_lines.txt" file. For simplicity all files created by this 
+suite are in CSV format with a semicolon (;) as separator.
+
+To reduce the running time, the 'sel_lines.ecf' script is divided into 
+two parts: one used to select all the monitoring stations (that doesn't
+consider the station name of arpa-fvg_cruises_2014-2021.txt) and anotherone
+used to select a specific monitoring station. This part uses the grep
+command to create a temporary file that contains the measuses for only 
+one particular station. This secondary will then be passed in a while loop
+to check the time variable. After this loop the tmp file is deleted.
+
+IMPORTANT: When the initial and final date inside initialization_file_#.txt
+is indicated without the year ( MM-DDThh-mm-ss ), this format means that
+all the available years contained in measurements ascii file ( in our case 
+arpa-fvg_cruises_2014-2021.txt ) have to be accepted. For this reason the
+measurement date string format of arpa-fvg_cruises_2014-2021.txt will be 
+modified from YYYY-MM-DDThh-mm-ss to MM-DDThh-mm-ss.
+If you know that some model data (netCDF files) are not available for certain
+years (so that time period won't be analysed for major causes), don't use
+an untied year notation like season1, season2, 1S ecc but use a manual
+time selection with the following format: YYYY-MM-DDThh:mm:ss_YYYY-MM-DDThh:mm:ss
+This will increase the speed of selection lines.

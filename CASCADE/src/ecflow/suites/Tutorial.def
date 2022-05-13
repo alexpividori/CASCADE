@@ -1,0 +1,154 @@
+# +---------------------------------------------------------------------------+
+#
+# This is the ecFlow suite definition driving the operational flow voted to the
+# monitor the INTERREG IT-HR projects activities on the C3HPC cluster and to 
+# report its operational status                   
+#
+# The suite has has the purpose to be a tutorial for beginners to ecFlow
+#
+# Useful links for more information and to get helps are:
+#
+# ecFlow home page: https://confluence.ecmwf.int/display/ECFLOW
+# ecFlow tutorial page: https://confluence.ecmwf.int/display/ECFLOW/Tutorial
+# ARPA FVG - CRMA specific implementations: 
+# http://www.arpa.fvg.it/export/sites/default/tema/aria/utilita/Documenti_e_presentazioni/tecnico_scientifiche_docs/2018mag03_arpafvg_crma_suite_ecflow_ats2018_001.pdf 
+# http://www.arpa.fvg.it/export/sites/default/tema/aria/utilita/Documenti_e_presentazioni/tecnico_scientifiche_docs/2015set29_arpafvg_crma_ecflow_utente_fenice_ats2015_005.pdf
+#
+#
+#  +-----------------------------------------------------------------------------------+
+#  |                                                                                   |  
+#  |     USE COMMENTS (#) AT THE BEBINNING OF LINES TO EXCLUDE NODES AND FALILIES      |
+#  |                                                                                   |  
+#  +-----------------------------------------------------------------------------------+
+#
+#
+# SUITE_NAME:           Tutorial   
+# SUITE_OWNER:          ARPA FVG - CRMA
+# SUITE_AUTORS:         Dario B. Giaiotti
+# SUITE_DESCRIPTION:    Operational suite for cluster activity monitoring
+# SUITE_CREATION-DATE:  20210325          # Date expressed as YYYYMMDD
+# SUITE_LAST_MODIFIED:  20210325          # Date expressed as YYYYMMDD
+# SUITE_TYPE:           operative         # May be operative, development,
+#                                         # research or user
+#
+#        
+#
+suite Tutorial
+  # 
+  #   ----> D E F I N I T I O N       S E C T I O N <----    
+  #
+  #   CLOCK DEFINITION                  
+  #
+  clock real       #This suite user the real clock         
+  # 
+  #   ENVIRONMENTAL VARIABLES DEFINITION
+  # 
+  # Directory. It is used as a prefix portion of the path of the job files created by ecFlow server
+  # 
+    edit ECF_HOME    /lustre/arpa/scratch/ecflow/CASCADE/
+  #
+  # Directory. It is used to find the ecFlow files
+  # 
+    edit ECF_FILES   /lustre/arpa/CASCADE/src/ecflow/suites/Tutorial
+  #
+  # Directory: It is used to find the files to be included in the nodes
+  # 
+    edit ECF_INCLUDE /lustre/arpa/CASCADE/src/ecflow/suites/$SUITE/include
+  #
+  # Number of times a job should be rerun if it aborts (default is 2)
+  # 
+    edit ECF_TRIES  1 
+  #
+  # Number of seconds to sleep at the end of each task (Not necessary, but suggested to avoid task overlapping)
+  # 
+    edit SLEEP  3   
+  #
+  # Suite initialization file. 
+  # This is the path to the file storing environmental variables characterizing the whole suite
+  # It is a feature of the ARPA FVG - CRMA implemengtation of ecFlow
+  # 
+    edit SUITE_INI_FILE  /lustre/arpa/CASCADE/src/ecflow/suites/Tutorial.ini    
+  #
+  #
+  # This is the Root directory for job summary reports storage. If it is not defined the reports
+  # are going to be saved in the %ECF_HOME%. The summary is a csv file (%YYYY%_ecFlow_jobs-summary.csv)
+  #
+    edit JOBS_REPORT_DIR /lustre/arpa/CASCADE/data/monit/ecflow/jobs_sum
+  #
+  # 
+  # Select the cron dependency to run the suite: Run every day at HH:MM UTC, or a repeat day 1. 
+  #
+  # For this suite the repeat date is used instead of cron. 
+  # The loading and beginning suite date starts and a very far end date
+  # has been set, meaning that there is no end. The advantage of using repeat date
+  # instead of repeat day 1, to loop the suite every day, is that the variable 
+  # reporting the value of the date can be used in the nodes as trigger or to control the flow. 
+  # Furthermore you can also manually change the variable value (to reflect current day or any day) 
+  # by means of the GUI ecflowviewer. If you do not need this you can stick with repeat day 1 
+  #
+  #
+#  repeat date CURDATE 20210101 20501231
+  repeat day  1
+  #
+  #
+  #
+  #   ----> F A M I L Y       S E C T I O N <----    
+  #
+  # +----------------------------------------------------------------------+
+  # |                                                                      |
+  # |  This is the family of the simplest node that does not need any      |
+  # |  further information in addition to those available in the node      |
+  # |  script. Just load head and tail, then say hello and list files      |
+  # |                                                                      |
+  # +----------------------------------------------------------------------+
+  #
+  #
+  family simplest
+         task t_simple_node  
+  endfamily
+  #
+  # +----------------------------------------------------------------------+
+  # |                                                                      |
+  # |  This is the family of spy tasks. These tasks are mainly meant to    |
+  # |  monitor the tasks and the families and then to produce logs repor-  |
+  # |  ting the staus of the flow.                                         |
+  # |                                                                      |
+  # +----------------------------------------------------------------------+
+  # 
+  family spy            
+         defstatus complete
+  endfamily
+  #
+  # +----------------------------------------------------------------------+
+  # |                                                                      |
+  # |  This is the family of log tasks. These tasks are mainly meant to    |
+  # |  collect all the logs in an archive. The purpose is to document the  |
+  # |  flow for future analysis.                                           |
+  # |                                                                      |
+  # +----------------------------------------------------------------------+
+  # 
+  family log            
+         time 00:00 23:30 01:00
+         date *.*.*
+         task tlog_arcflux
+              trigger ../cluster_status==complete 
+  endfamily
+  # 
+  #                       FAMILIES AND TASKS  
+  #
+  #
+  # +----------------------------------------------------------------------+
+  # |                                                                      |
+  # |  This is the set of families for the cluster status monitoring       |
+  # |  Disk usage, queues reports, etc.                                    |
+  # |                                                                      |
+  # +----------------------------------------------------------------------+
+  #
+  #
+  family cluster_status
+         edit PANEYE  'FENICE-STATUS'
+         time 00:00 23:30 06:00
+         date *.*.*
+         task t_watch_disk
+  endfamily
+endsuite

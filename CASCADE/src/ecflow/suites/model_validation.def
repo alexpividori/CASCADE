@@ -1,0 +1,100 @@
+# +---------------------------------------------------------------------------+
+#
+# This is the ecFlow suite definition driving the operational flow voted to the
+# monitor the INTERREG IT-HR projects activities on the C3HPC cluster and to 
+# report its operational status                   
+#
+suite model_validation 
+   
+  #   ENVIRONMENTAL VARIABLES DEFINITION START
+  #
+  # Directory. It is used as a prefix portion of the path of the job files created by ecFlow server
+  # 
+    edit ECF_HOME    /lustre/arpa/scratch/ecflow/CASCADE
+  #
+  # Directory. It is used to find the ecFlow files
+  # 
+    edit ECF_FILES   /lustre/arpa/scratch/pividoria/CASCADE/src/ecflow/suites/model_validation
+  #
+  # Directory: It is used to find the files to be included in the nodes
+  # 
+    edit ECF_INCLUDE /lustre/arpa/scratch/pividoria/CASCADE/src/ecflow/suites/model_validation/include
+  #
+  #
+  #
+  # Number of times a job should be rerun if it aborts (default is 2)
+  # 
+    edit ECF_TRIES  1 
+  #
+  # Number of seconds to sleep at the end of each task (Not necessary, but suggested to avoid task overlapping)
+  # 
+  
+  #
+  #   ENVIRONMENTAL VARIABLES DEFINITION STOP
+  #
+
+  edit SLEEP 2
+
+#=========================== CMEMS validation ===============================
+
+#family CMEMS_validation
+ 
+#  task set_dir
+#  task genesis_initialization_file
+#    trigger set_dir eq complete
+#  task sel_lines
+#    trigger genesis_initialization_file eq complete
+#  task sel_data_TEMP_PSAL
+#    trigger sel_lines eq complete
+#  task paste_append_drops
+#    trigger sel_data_TEMP_PSAL eq complete
+#  task depth_discrimination
+#    trigger paste_append_drops eq complete
+
+#  task master_graph
+#    trigger depth_discrimination eq complete
+#    repeat string   PLOT_TYPE  taylor_R # sctr_abs_R   boxplot_R   TS_diagram_NCL   // type of plots to be realized 
+
+#  task remove_tmp_dir
+#    trigger master_graph eq complete
+
+#endfamily
+
+#============================ SHYFEM validation ===========================
+
+family SHYFEM_validation
+  repeat string  SIMULATION_CODE_ECF 1995F100D0_AB01  1995F100D0_AB02 
+                        
+  task set_dir
+  task genesis_initialization_file
+    trigger set_dir eq complete
+  task sel_lines
+    trigger genesis_initialization_file eq complete
+  task sel_data_TEMP_PSAL
+    trigger sel_lines eq complete
+  task paste_append_drops
+    trigger sel_data_TEMP_PSAL eq complete
+  task depth_discrimination
+    trigger paste_append_drops eq complete
+
+endfamily
+
+#  task master_graph
+#    trigger depth_discrimination eq complete
+#    repeat string   PLOT_TYPE   taylor_R # TS_diagram_NCL sctr_abs_R  boxplot_R type of plots to be realized
+
+family combined_analysis
+    trigger SHYFEM_validation eq complete
+    edit  SIMULATION_CODE_ECF 1995F100D0_AB01
+
+  task combined_plots
+    repeat string PLOT_TYPE taylor_multi-diagram_R  # mean_multi-diagram_R  median_multi-diagram_R #   type of multi plots to be realized
+
+  task remove_all_tmp_dir
+    trigger combined_plots eq complete
+
+endfamily
+
+#=============================================================================
+
+endsuite

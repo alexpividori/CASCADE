@@ -1,0 +1,143 @@
+%manual
+%include <man/combined_plots.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+%include <etc/general_shy.ini>
+
+#=========================================================
+
+module load $r_module      &>/dev/null                                       # every graph is realized by R
+pre_initialization_file="$init_file_dir/pre_initialization_file.txt"
+
+echo "The mother temporary directory is: $tmp_dir_holding"
+echo "Now all directories contained inside it will be read"
+
+GOON=0
+
+cd        $tmp_dir_holding  || GOON=1
+tmp_hold="$tmp_dir_holding"
+
+if [[ $GOON -eq 1 ]]; then echo "Passage to \"$tmp_dir_holding\" failed."; ERROR ; fi
+
+IFS=" " read -r sub_directory_1st  <<< "$( ls )"    # this is the first subdirectory whose name starts with "shyfem_"
+echo "The first sub dir is $sub_directory_1st"
+
+#============== SHYFEM SIMULATIONS CODES extraction ===============
+
+   declare -a simulation_codes_array
+   R_vector_simulation_codes="c("
+
+      for dir_name in $( ls $tmp_hold ); do  simulation_codes_array+=(${dir_name#*_}) ; R_vector_simulation_codes+="'${dir_name#*_}'," ; done
+
+      R_vector_simulation_codes=${R_vector_simulation_codes::-1}
+      R_vector_simulation_codes+=")"
+
+echo "The R_vector_simulation_codes is: $R_vector_simulation_codes"
+
+#=================================================================
+#                Pre initialization file loop
+#================================================================
+i=1
+
+while IFS=";" read   f1  f2
+do
+
+	place="$f1"
+	output_files_dir="$output_comparison_plots_root/%PLOT_TYPE%/$f2"
+	depths_dir="selected_depths_$i"
+
+	case $f2 in
+        	season1)
+	        period="Jan-Feb-Mar"
+	        ;;
+	        season2)
+        	period="Apr-May-Jun"
+        	;;
+        	season3)
+        	period="Jul-Aug-Sep"
+        	;;
+        	season4)
+        	period="Oct-Nov-Dec"
+        	;;
+        	1S)
+        	period="Jan to Jun"
+        	;;
+        	2S)
+        	period="Jul to Dec"
+        	;;
+        	tot)
+        	period="Total"
+        	;;
+        	*)
+        	t1=${f2%%%%T*}   # all what is first the first "T": the strarting date (not time)
+        	t22=${f2##*_}
+        	t2=${t22%%T*}
+        	period="$t1 to $t2"
+        	;;
+        esac
+
+echo "Place is: $place, period is: $period, depths dire is:$depths_dir, output files dir is:$output_files_dir"
+
+#============================================================
+#                taylor_multi-diagram_R
+#============================================================
+
+if [ "%PLOT_TYPE%" == "taylor_multi-diagram_R" ]; then
+
+  echo "Now the Rscript used to create a multi taylor diagram (Temperature and Salinity) for different shyfem simulations will be launched right now."
+
+  Rscript ./$sub_directory_1st/taylor_multi-diagram_temp.r "$place" "$period" "$depths_dir" "$output_files_dir" "$R_vector_simulation_codes"  || GOON=1
+  Rscript ./$sub_directory_1st/taylor_multi-diagram_sal.r  "$place" "$period" "$depths_dir" "$output_files_dir" "$R_vector_simulation_codes"  || GOON=1
+
+   if [[ $GOON -eq 1 ]]; then echo "An error happened during the Rscripts launch."; ERROR ; fi
+
+fi
+
+#============================================================
+#                        mean_multi-diagram_R
+#============================================================
+
+if [ "%PLOT_TYPE%" == "mean_multi-diagram_R" ]; then
+
+   echo "Now the Rscript used to create a multi Mean diagram (Temperature and Salinity) for different shyfem simulations will be launched right now."
+
+   Rscript ./$sub_directory_1st/mean_multi_temp.r  "$place" "$period" "$depths_dir" "$output_files_dir" "$R_vector_simulation_codes"  || GOON=1
+   Rscript ./$sub_directory_1st/mean_multi_sal.r   "$place" "$period" "$depths_dir" "$output_files_dir" "$R_vector_simulation_codes"  || GOON=1
+
+   if [[ $GOON -eq 1 ]]; then echo "An error happened during the Rscripts %PLOT_TYPE% launch."; ERROR ; fi
+
+fi
+
+#============================================================
+#                        median_multi-diagram_R
+#============================================================
+
+if [ "%PLOT_TYPE%" == "median_multi-diagram_R" ]; then
+
+   echo "Now the Rscript used to create a multi Median diagram (Temperature and Salinity) for different shyfem simulations will be launched right now."
+
+   Rscript ./$sub_directory_1st/median_multi_temp.r  "$place" "$period" "$depths_dir" "$output_files_dir" "$R_vector_simulation_codes"  || GOON=1
+   Rscript ./$sub_directory_1st/median_multi_sal.r   "$place" "$period" "$depths_dir" "$output_files_dir" "$R_vector_simulation_codes"  || GOON=1
+
+   if [[ $GOON -eq 1 ]]; then echo "An error happened during the Rscripts launch."; ERROR ; fi
+
+fi
+
+#=======================================================================================
+
+i=$(( i + 1 ))
+
+done < $pre_initialization_file
+
+unset simulation_codes_array
+
+EXIT_STATUS=$?
+
+   echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+

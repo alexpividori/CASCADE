@@ -1,0 +1,42 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    Feb 19, 2018
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Look at the disk usage on FENICE cluster and report the status.       
+   Total space, full space and further details are reported in tabular
+   form and in graphical form.
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+   A failure of this node should NOT stop the %SUITE% flow. 
+   with unconsistent initializations
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   This node generates a job script from a template and submit it to
+   the queue. Among the disk monitoring outputs are:
+
+   1) filesystem partitions usage;
+
+   2) operative user usage of lustre partition.
+
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

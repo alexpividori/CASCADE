@@ -1,0 +1,27 @@
+   -------------------------------
+
+   This is the manual of Tutorial ecFlow suite
+
+   -------------------------------
+
+   Manual for: 
+          SUITE:  %SUITE%
+
+   Manual version: 0.0.1
+   Last change:    Mar 26, 2021
+   Change by:      Dario B. Giaiotti 
+
+   SUITE GOAL IS:
+   This suite is meant to help new ecFlow users in learning how suites and
+   nodes have to be written and used .
+ 
+   EXTENDED SUITE DESCRIPTION
+   This suite may run nodes of increasing complexity, from a bare node like   
+   those presente in the ecFlow tutorials to the more complex families and  
+   nodes that have been developped at the ARPA FVG CRMA, which require the 
+   initialization file, sub inizialization files, monitor the jobs submitted   
+   to the queues and perform snapshots of nodes execution for data provenance.
+
+   You are reading this manual on ------>  %DAY%, %DATE% (at: %ECF_TIME% UTC) 
+
+

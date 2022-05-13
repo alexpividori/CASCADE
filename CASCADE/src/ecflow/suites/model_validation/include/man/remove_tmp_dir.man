@@ -1,0 +1,10 @@
+======================================================================
+      This is the manual of the bash script: remove_tmp_dir.ecf
+======================================================================
+
+The only aim of this task is to remove the temporary directory  
+'model_validation_tmp' ( crated in scratch ) to reduce occupied memory 
+and to keep ordered and "clean" the working area.
+
+If the remotin can't be ultimated, an error message will be reported.
+This is the only check implemented inside this task.

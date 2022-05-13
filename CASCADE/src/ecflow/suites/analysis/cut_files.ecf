@@ -1,0 +1,111 @@
+%manual
+%include <man/cut_files.man>
+%end
+
+%include <head_4_bash.h>                  # Include header common to all tasks.
+%include <qsub_4_bash.h>                  # It manages general calls to ecflow client
+%include <etc/general.ini>
+
+#
+# TYPE is the variable AMXL, TEMP, ASVL, PSAL or RFVL
+#
+
+# Directory definitions
+
+   DATE=%ECF_DATE%
+  DATEB=$(date -u -d "$DATE ${bulletin_date_delta} " +%%Y%%m%%d)
+  YYYYB=${DATEB:0:4}
+    MMB=${DATEB:4:2}
+    DDB=${DATEB:6:2}
+
+  input_dir_cut="${input_dir_cut_root}/$YYYYB/$MMB/$DDB/%TYPE%"             
+ output_dir_cut="${output_dir_cut_root}/$YYYYB/$MMB/$DDB/%TYPE%"
+
+     tmp_dir="${tmp_dir_root}/cut_files_%TYPE%"          # working cut temporary dir                       
+
+EXIT_STATUS=0
+
+#==================================================
+
+GOON=0
+
+if    [ -d $tmp_dir ]; then
+  rm    -r $tmp_dir || GOON=1
+  mkdir -p $tmp_dir || GOON=1
+else
+  mkdir -p $tmp_dir || GOON=1
+fi
+
+if [ $GOON -eq 0 ] ; then
+  cd $tmp_dir
+else
+  echo "The directory $tmp_dir can't be created or can't be removed"
+  EXIT_STATUS=$?
+  exit $EXIT_STATUS
+fi
+
+
+if [ -f ./file_list_array_%TYPE%.txt  ]; then
+    rm  ./file_list_array_%TYPE%.txt
+else 
+    echo "file \"file_list_array_%TYPE%.txt\" will be created "
+fi
+
+GOON=0
+
+ls $input_dir_cut > ./file_list_1_%TYPE%.txt  || GOON=1
+
+if [ $GOON -eq 0 ] ; then
+  echo "\"file_list_1_%TYPE%.txt\" is now available"
+else
+  echo "The file_list_1_%TYPE%.txt can't be created"
+  EXIT_STATUS=1
+fi
+
+# Creation of file_list_array_%TYPE%.txt and file_list_%TYPE%
+
+while read line; do
+    echo   ${input_dir_cut}";"${line}   >>  ./file_list_array_%TYPE%.txt   # we use CSV format
+done < ./file_list_1_%TYPE%.txt
+
+rm ./file_list_1_%TYPE%.txt
+
+
+# Copy the job array from the scripts directory to the temporary dir
+
+cp   $script_dir/array_job_cut_files_type.job    $tmp_dir
+cp   $script_dir/initialization_file_cut.txt     $tmp_dir
+
+#**************************************************************
+
+if [ -f $tmp_dir/array_job_cut_files_%TYPE%.job  ]; then
+    rm  $tmp_dir/array_job_cut_files_%TYPE%.job
+else
+    echo "\"${tmp_dir}/array_job_cut_files_%TYPE%.job\" will be created"
+fi
+
+
+sed -e s/%%%%input_dir_name%%%%/${input_dir_cut//\//\\/}/g    \
+    -e s/%%%%output_dir_name%%%%/${output_dir_cut//\//\\/}/g  \
+    -e s/%%%%type_template%%%%/%TYPE%/g                       \
+    -e s/%%%%job_dir%%%%/${tmp_dir//\//\\/}/g                 \
+    -e s/%%%%cdo_module%%%%/${cdo_module//\//\\/}/g           $tmp_dir/array_job_cut_files_type.job   >   $tmp_dir/array_job_cut_files_%TYPE%.job
+
+   echo -e  "The job array used to cut %TYPE% files will be launched right now. \n"
+
+ecflow_qsub $tmp_dir/array_job_cut_files_%TYPE%.job    ||    GOON=1
+
+if [ $GOON -eq 0 ] ; then
+   echo -e "\t The job array is just finished."
+else
+   echo -e "\t ERROR: The job array can't be submitted"
+fi
+
+   rm ./file_list_array_%TYPE%.txt || echo -e "The file \"file_list_array_%TYPE%.txt\" can't be deleted"
+
+  
+   echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+

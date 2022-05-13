@@ -1,0 +1,46 @@
+# +---------------------------------------------------------------------------+
+#
+# This is the ecFlow suite definition driving the operational flow voted to the
+# monitor the INTERREG IT-HR projects activities on the C3HPC cluster and to 
+# report its operational status                   
+#
+suite cleaner_data
+
+  #   ENVIRONMENTAL VARIABLES DEFINITION START
+  #
+  # Directory. It is used as a prefix portion of the path of the job files created by ecFlow server
+  # 
+    edit ECF_HOME    /lustre/arpa/scratch/ecflow/CASCADE
+  #
+  # Directory. It is used to find the ecFlow files
+  # 
+    edit ECF_FILES   /lustre/arpa/CASCADE/src/ecflow/suites/cleaner_data
+  #
+  # Directory: It is used to find the files to be included in the nodes
+  # 
+    edit ECF_INCLUDE /lustre/arpa/CASCADE/src/ecflow/suites/cleaner_data/include
+  #
+  #
+  #
+  # Number of times a job should be rerun if it aborts (default is 2)
+  # 
+    edit ECF_TRIES  1 
+  #
+  # Number of seconds to sleep at the end of each task (Not necessary, but suggested to avoid task overlapping)
+  # 
+  
+  #
+  #   ENVIRONMENTAL VARIABLES DEFINITION STOP
+  #
+
+  edit SLEEP 2
+ 
+family clean_plots_data
+   cron 01:00     # expressed in UTC
+ 
+   task t_clean 
+
+endfamily
+
+
+endsuite

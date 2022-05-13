@@ -1,0 +1,100 @@
+======================================================================
+      This is the manual of the bash script: combined_plots.ecf
+======================================================================
+
+This task is used to launch a particular graphs that need the entire 
+different simulations datasets.
+
+For this reason it must be launched when SHYFEM_simulation family is 
+finished for all different simulations needed.
+For now the task is used only for SHYFEM simulations comparison. Every
+of these simulations are identified by an alphanumeric serial code of type:
+XXXXXXXXXX_XXXX (when X is an upper alpha-numeric digit).
+So the operative modality of this task is to create a repeated family 
+that cycles on N different simulation SIMULATION_CODE_ECF strings 
+(remember to not remove the directories created). 
+After the cycle is finished, the family is completed and a new family with
+this 'combined_plots.ecf' task can be launched.
+The family in which this task is included must have a SIMULATION_CODE_ECF
+value because the initialization file used is always the same: general_shy.ini
+It is not important what this string value is equal to (you can put a dummy value).
+After this task is termined, is a good choise to launch the task that remove 
+the entire simulations dataset (for this us 'remove_all_tmp_dir.ecf').
+
+****************************************************************************
+            A possible suite architecture is the following
+****************************************************************************
+
+family SHYFEM_validation   # this family collects the data for the combined plots
+  repeat string  SIMULATION_CODE_ECF 1995F100D0_AB01  1995F100D0_AB02  
+                           # this family cycle on the entire set of simulations serial codes
+
+  task set_dir
+  task genesis_initialization_file
+    trigger set_dir eq complete
+  task sel_lines
+    trigger genesis_initialization_file eq complete
+  task sel_data_TEMP_PSAL
+    trigger sel_lines eq complete
+  task paste_append_drops
+    trigger sel_data_TEMP_PSAL eq complete
+  task depth_discrimination
+    trigger paste_append_drops eq complete
+
+endfamily 
+
+# after the data extraction is completed for every simulation, you can launch the family 
+# that create the combined plots
+
+family combined_analysis
+    trigger SHYFEM_validation eq complete
+    edit  SIMULATION_CODE_ECF 1995F100D0_AB01   # dummy value: you can use any string you want
+
+  task combined_plots
+    repeat string PLOT_TYPE taylor_multi-diagram_R mean_multi-diagram_R median_multi-diagram_R 
+                                                # REMEMBER: taylor diagrams need a different depth range vector 
+
+  task remove_all_tmp_dir                       # this is a little bit different from remove_tmp_dir
+    trigger combined_plots eq complete
+
+endfamily 
+
+*******************************************************************************
+
+The depth ranges vector used for all simulation analysis must be the same.
+
+The using modality of this task is very similar to master_graph.ecf
+An ecflow string variable called PLOT_TYPE has been repeated on a cycle that 
+changes his value. The meaning of his key words is the following:
+
+taylor_multi-diagram_R    :  This PLOT_TYPE keyword tell the task to create 
+                          a taylor diagram that compare many different shyfem 
+                          ran. Each simulation is indicated with a different
+                          dot color and the legend indicate the biunivocal
+                          correspondence between serial code simulation and color 
+                          used
+
+mean_multi-diagram_R      :  This PLOT_TYPE keyword tell the task to create
+                          a cartesian plot indicating the mean value of the
+                          difference between model physical dimension (Temperature
+                          or Salinity) and the in-situ corresponding measure.
+                          Every dot is related to a particular depth range.
+                          Each simulation is indicated with a different
+                          dot color and an external legend indicate the biunivocal
+                          correspondence between serial code simulation and color
+                          used
+
+median_multi-diagram_R    :  This PLOT_TYPE keyword tell the task to create
+                          a cartesian plot indicating the median value of the
+                          difference between model physical dimension (Temperature
+                          or Salinity) and the in-situ corresponding measure.
+                          Every dot is related to a particular depth range.
+                          Each simulation is indicated with a different
+                          dot color and an external legend indicate the biunivocal
+                          correspondence between serial code simulation and color
+                          used
+
+
+IMPORTANT: Use the remove_all_tmp_dir.ecf task (with a trigger) only when the 
+           combined_plots.ecf is correctly completed.
+ 

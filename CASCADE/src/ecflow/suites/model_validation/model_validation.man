@@ -1,0 +1,29 @@
+========================================================
+               MODEL VALIDATION (suite)
+========================================================
+
+This is the manual of the entire model validation suite.
+This suite is used to validate model simulation data with 
+the counter part in-situ measured data. 
+Provided by the colleague Massimo Celio from arpaFVG, we avail 
+an ascii file that collect in-situ measures of all northern 
+adriatic sea from 2014 to 2021. The measured has been performed
+on particular points called monitoring stations. The entire
+monitoring stations set is available on arpaFVG official site 
+following the link: http://www.arpaweb.fvg.it/mamc/gmapsmamc.asp
+
+The suite is able to validate data coming from different 
+models types. At this time it could analyze COPERNICUS Marine
+Service model (reading netCDF files) data and SHYFEM Model
+(reading ASCII files). 
+
+Every single family is create to validate a single model 
+simulation. CMEMS_validation family is used to validate 
+COPERNICUS model and SHYFEM_validation for SHYFEM simulations.
+
+If you want to validate different simulations in the same 
+suite, you have to copy the entire family (with all his tasks)
+and paste below inside the suite definition file: model_validation.def
+
+To get informations about how this suite works, please consult
+tasks and family manuals.

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+#
+#******************************************************************************
+#
+# DESCRIPTION:       This bash script is the template used to create the other versions: TEMP,
+#                    PSAL, RFVL, AMXL, ASVL
+#
+#
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (currents);
+#                     Containing Temperature, Salinity, Currents or whatever
+#                   - Initialization_file.txt in the usual format:
+#                     serial_code,lat_min,lat_max,lon_min,lon_max,denomination_name,type,time_step,depth  
+#           
+#
+# DEVELOPER:         Alex Pividori (alex.pividori@arpa.fvg.it)
+#                    ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                    "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: Bash 
+#                   CDO version 1.9.8
+#
+# CREATION DATE:    23/04/2021.
+#
+# MODIFICATIONS:    23/04/2021 --> 
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+#PBS -N cut_array
+#PBS -P CASCADE
+#PBS -W umask=0002
+#PBS -o stdout_type_template
+#PBS -e stderr_type_template
+#PBS -q arpa
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:30:00
+##PBS -m abe
+##PBS -M alex.pividori@arpa.fvg.it
+#PBS -J 1-5
+#PBS -W block=true
+
+# module purge
+
+module load  %%cdo_module%%          # in job you have to charge the module each time
+
+ input_dir="%%input_dir_name%%"      # it is not used in this job
+output_dir="%%output_dir_name%%"
+   job_dir="%%job_dir%%"
+
+
+if [ -f "$job_dir/file_list_array_%%type_template%%.txt" ]; then
+  echo "The .txt file containing the file list to be cutted exist."
+else
+  echo "The .txt file containing the file list to be cutted DOESN'T exist."
+fi
+
+
+for i in $( cat "$job_dir/initialization_file_cut.txt" ); do # cycle on the initialization_file lines. Each line can
+                                                             # identificate a particular region
+IFS=";"
+read -a parameters <<< "$i"   #create a vector called parameters containing the initialization_file.txt info
+
+ ind=1
+
+  while IFS=";" read -r  dir_input  file_name    # the number of lines present in date_time.txt determinate the number of graphs
+  do                                             # time-steps to be represented. In "s" modality the will be only one line. 
+
+    if [ "$PBS_ARRAY_INDEX" -eq "$ind" ]; then
+      cdo  --no_history sellonlatbox,${parameters[3]},${parameters[4]},${parameters[1]},${parameters[2]} \
+                       ${dir_input}"/"${file_name}  $output_dir"/adriatic_"$file_name
+      exit
+    else
+      ((ind ++))
+    fi
+
+  done < $job_dir/file_list_array_%%type_template%%.txt                                          
+
+  
+done  

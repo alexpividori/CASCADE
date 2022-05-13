@@ -1,0 +1,155 @@
+%manual
+%include <man/general.man>          # General manual for all task in this suite
+%include <man/t_watch_tickets.man>  # Specific manual for this task
+%end
+
+%include <head_4_bash.h>            # Include header common to all tasks. 
+                                    # It manages general calls to ecflow client
+
+%include <qsub_4_bash.h>            # Include the function managing the jobs
+                                    # submission to the queue
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+    echo -e "\n\n\tMONITOR TRAC TICKETING SYSTEM FOR CRMA\n"
+    EXIT_STATUS=0   # set default exit status everything OK
+    #
+    # +--------------------------------------------------------------------
+    # | Check whether suite initialization file exists                    |
+    # +--------------------------------------------------------------------
+    #
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE%" not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE%" found.\n"
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |  Load suite initialization file                                 |
+    #  +------------------------------------------------------------------
+    #
+    LOADOK=0
+    . %SUITE_INI_FILE% || LOADOK=1
+    if [[ $LOADOK -eq 0 ]];then 
+       echo -e "\tSuite initialization file successfully loaded\n"
+    else
+       echo -e "\n\tERROR!!!! Suite initialization file load failure!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  | Check the existence of all required information and files to    |
+    #  | create the job                                                  |
+    #  +------------------------------------------------------------------
+    #
+    echo -e "\t+------------------------------------------------------+"
+    echo -e "\t| JOB SCRIPT GENERATION AND SUBMISSION TO THE QUEUE    |"
+    echo -e "\t+------------------------------------------------------+"
+    if [[ -z $GEN_WORK_DIR ]];then          # If root directory to run the job is not availabe exit
+          echo -en "\n\tRoot directory $GEN_WORK_DIR is not defined. ERROR I give up!!!!"
+          EXIT_STATUS=2; ERROR
+    fi 
+    if [[ -z $TR_JOB_TPL ]];then            # If job template is not defined  exit
+          echo -en "\n\tJob template $TR_JOB_TPL is not defined. ERROR I give up!!!!"
+          EXIT_STATUS=2; ERROR
+    else
+          if [[  -e $TR_JOB_TPL ]];then     # If job template is not available exit
+             echo -en "\n\tJob template is available. It is: $TR_JOB_TPL"
+          else
+             echo -en "\n\tJob template $TR_JOB_TPL is not available. ERROR I give up!!!!"
+             EXIT_STATUS=2; ERROR
+          fi
+    fi 
+    #
+    #  +------------------------------------------------------------------
+    #  |   Create the job submission directory                           |
+    #  +------------------------------------------------------------------
+    #
+    DIR4JOB=$(mktemp -u %TASK%.XXXX)
+    DIR4JOB="${GEN_WORK_DIR}/%PANEYE:NULL%/${DIR4JOB}"
+    echo -e "\n\tTemporary work directory is going to be created.\n\tIt is: ${DIR4JOB}"
+    MKDIR_RUN_HOME_FLAG=0 
+    mkdir -p ${DIR4JOB} || MKDIR_RUN_HOME_FLAG=1
+    if [[ $MKDIR_RUN_HOME_FLAG -eq 0 ]];then 
+       echo -e "\tCreated."
+    else
+       echo -e "\tImpossible to create the required directory. ERROR I give up!!!!"
+       EXIT_STATUS=1; ERROR
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |   Move into the job submission directory and generate the job   |
+    #  +------------------------------------------------------------------
+    #
+    cd $DIR4JOB
+    #
+    # Modify job template file
+    #
+    SEDFILE=$(mktemp -u sedfile.XXXX)
+    echo -en "\tCreating sed file: $SEDFILE ...."
+    cat << EOF > $SEDFILE
+        s/%%%%PROJECTNAME%%%%/${PROJECTNAME:-%SUITE%}/g
+        s/%%%%JOBNAME%%%%/${TR_JOBNAME:-%TASK%}/g
+        s/%%%%QUEUE%%%%/${TR_JOBQUEUE}/g
+        s/%%%%TR_ROOT_DIR%%%%/${TR_ROOT_DIR//\//\\/}/g
+        s/%%%%TR_LOG_DIR%%%%/${TR_LOG_DIR//\//\\/}/g
+        s/%%%%TR_ARCH_DIR%%%%/${TR_ARCH_DIR//\//\\/}/g
+        s/%%%%TR_MONIT_FILE%%%%/${TR_MONIT_FILE//\//\\/}/g
+        s/%%%%TR_ENV_MODULE%%%%/${TR_ENV_MODULE//\//\\/}/g
+EOF
+    echo -en ".... created.\n"
+    echo -en "\tGenerating job script: $TR_JOBNAME ...."
+    GOON=0
+    sed -f $SEDFILE $TR_JOB_TPL > $TR_JOBNAME || GOON=1
+    if [[ $GOON  -ne 0 ]]; then  
+        echo -e " ERROR!!!\n\n"; EXIT_STATUS=3; ERROR
+    else  
+        echo -e " created.\n"
+    fi
+    rm $SEDFILE
+
+    #
+    #  +------------------------------------------------------------------
+    #  |   Submit the job and then retrieve the summary of used resources|
+    #  +------------------------------------------------------------------
+    #
+    JOBGOON=0
+    ecflow_qsub $TR_JOBNAME || JOBGOON=1
+    if [[ $JOBGOON -eq 0 ]];then 
+       echo -e "\tEverything OK with this job. I continue"
+    else
+       echo -e "\tWARNING! There are some problesm with this job. Please check, but I continue!\n"
+    fi
+    echo -e "\n\t+------------------------------------------------------+"
+    echo -e "\t| JOB SCRIPT EXECUTED AND RESOURCES MONITORING DONE    |"
+    echo -e "\t+------------------------------------------------------+"
+    #
+    #  +------------------------------------------------------------------
+    #  |   Remove the job submission directory and all its content       |
+    #  +------------------------------------------------------------------
+    #
+    if [[ -d $DIR4JOB ]];then
+       echo -en "\n\tTemporary work directory is going to be removed ..." 
+       RMDIR_FLAG=0 
+       rm -R ${DIR4JOB} || RMDIR_FLAG=1
+       if [[ $RMDIR_FLAG -eq 0 ]];then 
+          echo -en " successfully removed.\n" 
+       else
+          echo -e "\n\tERROR in removing the directory: ${DIR4JOB}. \n\tI give up!!!!"
+          EXIT_STATUS=1; ERROR
+       fi
+    fi
+
+    echo -e "\n\n\tMONITOR TRAC TICKETING SYSTEM FOR CRMA COMPLETED"
+    echo -e "\t   (I hope everything is OK. Good luck)\n\n\n"
+
+
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE ABOVE
+#-----------------------------------------------------------------------------
+
+%include <tail_4_bash.h>            # Include tail common to all tasks. 
+                                    # It manages general calls to ecflow client

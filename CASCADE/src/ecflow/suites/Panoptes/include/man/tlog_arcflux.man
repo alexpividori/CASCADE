@@ -1,0 +1,55 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.1.0
+   Task manual last change:    Apr 10, 2018
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Archive all the ecFlow log and job files plus the other log files generated
+   during the task activities in a tar compressed file. 
+   The ecFlow node sources, manual, suite definition and suite initialization
+   files are added too.
+   
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   The log activity archives all the ecFlow nodes files generated during
+   the flow. The ecflow script is really simple and executes a tar gzipped archive
+   starting from the %%ECF_HOME%%/%%SUITE%% directory.
+   (%%ECF_HOME%%/%%SUITE%%=%ECF_HOME%/%SUITE%)
+   Archive is created in a destination directory which is set in the PROV_LOG_TAR_DIR
+   parameter by means of suite initialization file. 
+
+   Furthermore, if in the suite initialization file the following parameters are set:
+
+   PROV_TIME_BUFFER=""            # Time window for keeping the logs in the archive
+                                  # Allowed units are:
+                                  #   seconds, minutes, hours, days, months, years
+
+   PROV_TIME_LONGTAIL=""          # Time window for keeping the logs in the %ECF_HOME%
+                                  # Units are days and integers are mandatory.
+                                  # All kind of files older than $PROV_TIME_LONGTAIL
+                                  # are removed. If the parameter is not set, then files
+                                  # are never removed and they are left there.
+
+   you can manage the length of the provenance story and keep always clean the 
+   %%ECF_HOME%% directory.
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

@@ -1,0 +1,236 @@
+# +---------------------------------------------------------------------------+
+#
+# This is the ecFlow suite definition driving the operational flow voted to the
+# monitor the INTERREG IT-HR projects activities on the C3HPC cluster and to 
+# report its operational status                   
+#
+suite analysis  
+   cron 00:02   #  if the suite is comleted, it restart automatically every day at ??:?? am.
+   limit fam 1
+  #   ENVIRONMENTAL VARIABLES DEFINITION START
+  #
+  # Directory. It is used as a prefix portion of the path of the job files created by ecFlow server
+  # 
+    edit ECF_HOME    /lustre/arpa/scratch/ecflow/CASCADE
+  #
+  # Directory. It is used to find the ecFlow files
+  # 
+    edit ECF_FILES   /lustre/arpa/CASCADE/src/ecflow/suites/analysis
+  #
+  # Directory: It is used to find the files to be included in the nodes
+  # 
+    edit ECF_INCLUDE /lustre/arpa/CASCADE/src/ecflow/suites/analysis/include
+  #
+  #
+  #
+  # Number of times a job should be rerun if it aborts (default is 2)
+  # 
+    edit ECF_TRIES  1 
+  #
+  # Number of seconds to sleep at the end of each task (Not necessary, but suggested to avoid task overlapping)
+  # 
+  
+  #
+  #   ENVIRONMENTAL VARIABLES DEFINITION STOP
+  #
+
+  edit SLEEP 2
+ 
+family f1   
+ 
+  task download_spy
+    time  00:05 01:05  00:15   # time is in UTC units, if a particular task didn t ended properly, the task restart
+    complete ( cut_AMXL eq complete ) and ( cut_ASVL eq complete ) and ( cut_PSAL eq complete ) and ( cut_RFVL eq complete ) and ( cut_TEMP eq complete )
+    event AMXL    
+    event ASVL
+    event PSAL
+    event RFVL
+    event TEMP
+
+#******************************************
+
+family cut_AMXL
+  trigger download_spy:AMXL
+
+  task cut_files
+    edit TYPE "AMXL"
+
+endfamily
+
+family cut_ASVL
+   trigger download_spy:ASVL
+
+  task cut_files
+    edit TYPE "ASVL"
+
+endfamily
+
+family cut_PSAL
+   trigger download_spy:PSAL
+
+  task cut_files
+    edit TYPE "PSAL"
+
+endfamily
+
+family cut_RFVL
+    trigger download_spy:RFVL
+
+  task cut_files
+    edit TYPE "RFVL"
+
+endfamily
+
+family cut_TEMP
+    trigger download_spy:TEMP
+ 
+  task cut_files
+    edit TYPE "TEMP"
+
+endfamily
+
+endfamily
+
+#===========================================
+
+family f_set
+    trigger f1 eq complete
+    task set_dir
+endfamily
+
+#============================================
+
+family f2
+  trigger f_set eq complete
+  repeat string   PLOT_TYPE  cnt_v_v_GMT  TS_diagram_NCL  strlines_NCL   # T_transect_NCL
+
+#******************************************
+
+       family f_d1
+          inlimit  -n fam
+          task master_plots
+          edit DELTAFORECAST "0 days"
+       endfamily
+
+#******************************************
+
+       family f_d2
+          inlimit  -n fam
+          task master_plots
+          edit DELTAFORECAST "1 day"
+       endfamily
+
+#******************************************
+
+       family f_d3
+          inlimit  -n fam
+          task master_plots
+          edit DELTAFORECAST "2 days"
+       endfamily
+
+#******************************************
+
+       family f_d4
+          inlimit  -n fam
+          task master_plots
+          edit DELTAFORECAST "3 days"
+       endfamily
+
+#******************************************
+
+       family f_d5
+          inlimit  -n fam
+          task master_plots
+          edit DELTAFORECAST "4 days"
+       endfamily
+
+#******************************************
+
+endfamily
+
+#==========================================
+#         Family plots archive
+#==========================================
+
+family archive
+   trigger f2 eq complete
+      
+
+       family f_d1
+          task t_archive
+          task copy_public
+       endfamily
+
+
+       family f_d2
+          task t_archive
+          task copy_public
+       endfamily
+
+
+       family f_d3
+          task t_archive
+          task copy_public
+       endfamily
+
+
+       family f_d4
+          task t_archive
+          task copy_public
+       endfamily
+
+
+       family f_d5
+          task t_archive
+          task copy_public
+       endfamily
+
+endfamily
+
+#==========================================
+#     Family COPERNICUS data_archive
+#==========================================
+
+family cmems_archive
+   trigger f2 eq complete
+
+       family AMXL
+          task t_data_archive
+       endfamily
+
+
+       family ASVL
+          task t_data_archive
+       endfamily
+
+
+       family PSAL
+          task t_data_archive
+       endfamily
+
+
+       family RFVL
+          task t_data_archive
+       endfamily
+
+
+       family TEMP
+          task t_data_archive
+       endfamily
+
+endfamily
+
+#============================================
+#        Family remove tmp directory
+#============================================
+
+family remove_tmp
+  trigger archive eq complete
+
+      task remove_tmp_dir
+
+endfamily
+
+#============================================
+
+endsuite

@@ -1,0 +1,135 @@
+%manual
+%include <man/general.man>                     # General manual for all task in this suite
+%include <man/t_terminator.man>                # Specific manual for this task
+%end
+
+%include <head.h>                              # Include header common to all tasks. 
+                                               # It manages general calls to ecflow client
+
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+    echo -e "\n\n\tTHIS IS THE TERMINATOR FOR OPERATIVE OLD PRODUCTS\n\n\t\tSet: %PANEYE%\n"
+    EXIT_STATUS=0   # set default exit status everything OK
+    #
+    # +--------------------------------------------------------------------
+    # | Check whether suite initialization file exists                    |
+    # +--------------------------------------------------------------------
+    #
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE%" not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE%" found.\n"
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |  Load suite initialization file                                 |
+    #  +------------------------------------------------------------------
+    #
+    LOADOK=0
+    . %SUITE_INI_FILE% || LOADOK=1
+    if [[ $LOADOK -eq 0 ]];then 
+       echo -e "\tSuite initialization file successfully loaded\n"
+    else
+       echo -e "\n\tERROR!!!! Suite initialization file load failure!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    fi
+    #
+    #  +------------------------------------------------------------------
+    #  |  Some verbose before to start the task                          |
+    #  +------------------------------------------------------------------
+    #
+    TMP_WRK_DIR="${GEN_WORK_DIR}/%PANEYE%"
+    echo -e "\n\tThis node is going to look for files using these root directories:"
+    echo -e "\n\tTemporary directory to work into:\n\tTMP_WRK_DIR=${TMP_WRK_DIR}"
+    echo -e "\n\tRoot directory where temporary files and directories are created:\n\tGEN_WORK_DIR=${GEN_WORK_DIR}"
+    echo -e "\n\tRoot directory log files are going to be stored, if needed:\n\tGEN_LOG_DIR=${GEN_LOG_DIR}"
+    echo -e "\n\tRoot directory where script files and job templates are available:\n\tGEN_SRC_DIR=${GEN_SRC_DIR}"
+    echo -e "\n\tRoot directory where initialization files are available:\n\tGEN_ETC_DIR=${GEN_ETC_DIR}"
+    echo -e "\n\tRoot directory where auxiliary data files are available:\n\tGEN_DAT_DIR=${GEN_DAT_DIR}"
+    #
+    # Move in the temporary WORK 
+    #
+    if [[ ! -d $TMP_WRK_DIR ]];then mkdir -p $TMP_WRK_DIR; fi; cd $TMP_WRK_DIR
+    echo -e "\n\tCurrently I am in: $(pwd)\n"
+    #
+    #  +------------------------------------------------------------------
+    #  |  Load specific initialization file                              |
+    #  +------------------------------------------------------------------
+    #
+    SPEC_INI_FILE="$(echo $TERMIN_INI_FILE_TPL | sed -e s/%%PANEYE%%/%PANEYE%/g)"
+    if [[ ! -e ${SPEC_INI_FILE:-NULL} ]]; then
+       echo -e "\n\n\tERROR!!!! Parameters file SPEC_INI_FILE=$SPEC_INI_FILE not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -en "\n\tParameters file SPEC_INI_FILE=$SPEC_INI_FILE found.\n\tLoading file ..."
+       #
+       # Load specific initialization file
+       #
+       LOADOK=0
+       . $SPEC_INI_FILE || LOADOK=1
+       if [[ $LOADOK -eq 0 ]];then
+          echo -en "... successfully loaded\n"
+       else
+          echo -en " ... FAILURE!!!!\n\tERROR!!!! Exit from this node\n"
+          EXIT_STATUS=1 ; ERROR
+       fi
+    fi
+    #
+    # Some diagnostic before to start the removal
+    #
+    #
+    echo -e "\n\tThe directory where to start removal is:  $TERMIN_ROOT_DIR"
+    echo -e "\tInvolved subdirs are: "
+    for DRR in $TERMIN_GEN_REMOVAL;do echo -e "\n\t\t$DRR "; done
+    echo -e "\n\tThe max number of files to be removed in one shot: $TERMIN_NUM_REMOVAL"
+    echo -e "\tThe min age for files to be removed: $TERMIN_MAX_DATE (birth date)"
+    MIN_AGE="$(date -u -d "${TERMIN_MAX_DATE}" +%%s)" || MIN_AGE=0
+    #
+    #  +------------------------------------------------------------------
+    #  |  Remove subdirectories as requested                             |
+    #  +------------------------------------------------------------------
+    #
+    NTOT_REMOVED=0
+    for DRR in $TERMIN_GEN_REMOVAL;do 
+        TMP_LIST=$(mktemp -u remove_dirs_list.XXXXX)
+        echo -e "\n\n\t\t START REMOVAL IN: $DRR "
+        find ${TERMIN_ROOT_DIR}/${DRR} -name "20*_*" -type d | sort >> $TMP_LIST || touch $TMP_LIST 
+        NTOT=$(wc -l $TMP_LIST | cut -d " " -f 1) || NTOT=0
+        echo -e "\tNumber of subdirectory potentially to be removed: $NTOT"
+        echo -e "\tNumber of subdirectory to remove: $TERMIN_NUM_REMOVAL"
+        N=0
+        while read F;do
+              if [[ $N -gt  $TERMIN_NUM_REMOVAL ]];then break;fi
+              echo -e "\t$(printf "%%5d" $N) --> Selected: $F"
+              AGE="$(stat -c %%Y $F)" || AGE=0
+              if [[ $AGE -le $MIN_AGE ]];then 
+                 echo -e "\t\tDirectory was last modified: $(stat -c %%y $F). I remove it."
+                 rm -R $F || echo -e "\n\t\tWARNING!!! Errors in removal\n"
+                 NTOT_REMOVED=$(($NTOT_REMOVED+1))
+              else
+                 echo -e "\t\tDirectory was last modified: $(stat -c %%y $F). It is newer that ${TERMIN_MAX_DATE}. I CANNOT remove it."
+              fi
+              ecflow_client --label=REMOVED_DIRS "Removed: $NTOT_REMOVED"
+              N=$(($N+1))
+        done < $TMP_LIST 
+        if [[ -e $TMP_LIST ]];then rm  $TMP_LIST;fi
+    done
+
+    #
+    #  +------------------------------------------------------------------
+    #  |  REMOVE SUBDIRECTORIES                                          |
+    #  +------------------------------------------------------------------
+    #
+    #
+    # 
+    #
+    echo -e "\n\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE ABOVE
+#-----------------------------------------------------------------------------
+
+%include <tail.h>                   # Include tail common to all tasks. 
+                                    # It manages general calls to ecflow client

@@ -1,0 +1,40 @@
+   ---------------------------------
+   | Specific manual for this task |
+   ---------------------------------
+
+   Task manual version:        0.0.1
+   Task manual last change:    May 20, 2019
+   Change by:                  Dario B. Giaiotti 
+
+   TASK GOAL IS:
+   Generate a file with note and all the needed information required to perform
+   the backup. Created files are going to be used for e-mail notification and
+   for database purposes if expected.
+
+   IF THIS TASK FAILS, WHAT TO DO:
+   If this task fails, check whether the stdout and reports relevant info.
+
+ 
+   EXTENDED TASK DESCRIPTION
+
+   This node check the existence of a job template file then it uses the family
+   and the suite initialization file to edit backup istructions or e-mail 
+   attachments.
+
+   The job template file is mandatory because the work to be done with this 
+   task may be heavy computing. Anyway in some cases it is reduced to a simple
+   string replacement.
+
+
+   This task was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it

@@ -1,0 +1,154 @@
+%manual
+%include <man/general.man>                              # General manual for all task in this suite
+%include <man/t_bks_notes.man>                           # Specific manual for this task
+%end
+
+%include <head_4_bash.h>                                # Include header common to all tasks. 
+                                                        # It manages general calls to ecflow client
+
+
+%include <qsub_4_bash.h>                                # Include the function managing the jobs
+                                                        # submission to the queue
+
+#-----------------------------------------------------------------------------
+#                        MAIN SCRIPT HERE BELOW
+#-----------------------------------------------------------------------------
+
+    echo -e "\n\n\t\tGENERATE NOTE USEFUL FOR BACKUP\n"
+    EXIT_STATUS=0                    # set default exit status everything OK
+    WHOGET="%WHOGET:NULL%"           # Load the FAMILY variable 
+#
+# Check whether suite initialization file exists
+#
+    if [[ ! -e %SUITE_INI_FILE% ]]; then
+       echo -e "\n\tERROR!!!! Initialization file SUITE_INI_FILE=%SUITE_INI_FILE% not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\n\tInitialization file SUITE_INI_FILE=%SUITE_INI_FILE% found.\n"
+       INI_FILE="%SUITE_INI_FILE%"
+    fi
+#
+# Load suite initialization file 
+#
+    . %SUITE_INI_FILE% || EXIT_STATUS=1
+    if [[ $EXIT_STATUS -ne 0 ]];then echo -e "\n\n\tWARNING PROBLEMS IN THIS TASK - PLEASE CHECK \n\n";fi
+#
+# Check whether FAMILY initialization file exists. It should be stored in BACKUP_INI_FILE
+#
+  FAMILY_INI_FILE="$(echo ${BACKUP_INI_FILE} | sed s/%%WHOGET%%/${WHOGET}/g)"
+  if [[ ! -e $FAMILY_INI_FILE ]]; then
+     echo -e "\n\tERROR!!!! FAMILY initialization file FAMILY_INI_FILE=${FAMILY_INI_FILE} not found!!!\n"
+     EXIT_STATUS=1 ; ERROR
+  else
+     echo -e "\tFAMILY initialization file FAMILY_INI_FILE=${FAMILY_INI_FILE} found.\n"
+  fi
+#
+# Load FAMILY initialization file 
+#
+    . $FAMILY_INI_FILE || EXIT_STATUS=1
+    if [[ $EXIT_STATUS -ne 0 ]];then echo -e "\n\n\tWARNING PROBLEMS IN THIS TASK - PLEASE CHECK \n\n";fi
+#
+# Some consistency check before to continue
+#
+  DATES="$(date -u +%%Y%%m%%d)"         # Define today                                              
+  if [[ "${BACKUP_DATE:=NULL}" != "${DATES}" ]];then
+     echo -e "\n\tWARNING CURDATE differs form DATES!!!!\n\t\tCURDATE="${BACKUP_DATE}"\n\t\tDATES=${DATES}\n"
+  else
+     echo -e "\n\tCURDATE equals DATES\n\t\tCURDATE="${BACKUP_DATE}"\n\t\tDATES=${DATES}\n"
+  fi 
+#
+# Load parameters useful for the whole node
+#
+  MAIL_NOTIFY=${WHOGET}                                                                       # Load the suite variable required for notification
+  NOTES_JTPL_FILE="$(echo $BACKUP_INF_JTPL | sed -e s/%%WHOGET%%/${WHOGET}/g)"                # and define de email initialization file 
+  BACKUP_WORK_DIR="$(echo ${BACKUP_WORK_DIR} | sed -e s/%%WHOGET%%/${WHOGET}/g)"              # Root directory for notification messages generation 
+  NOTESG_TMP_DIR="${BACKUP_WORK_DIR}/$(mktemp -u notes_gener.XXXXX)"                          # Temporary directory for notification messages generation 
+#
+#
+# Check the existence of all files required the notification         
+#
+#
+    echo -e "\n\tI am looking for  notes and information job template file.\n\tIt is: $NOTES_JTPL_FILE\n"
+    if [[ ! -e $NOTES_JTPL_FILE ]]; then
+       echo -e "\n\tERROR!!!! Notes and information job template file NOTES_JTPL_FILE=$NOTES_JTPL_FILE not found!!!\n"
+       EXIT_STATUS=1 ; ERROR
+    else
+       echo -e "\tNotes and information job template file NOTES_JTPL_FILE=$NOTES_JTPL_FILE found.\n"
+    fi
+#
+# Create the temporary directory for messages preparation            
+#
+    if [[ ! -d $NOTESG_TMP_DIR  ]];then mkdir -p $NOTESG_TMP_DIR;fi  # Create temporary directory for email messages preparation
+    echo -e "\tCreaded temporary directory: $NOTESG_TMP_DIR"
+    cd $NOTESG_TMP_DIR
+    echo -e "\tCurrently I am in the temporary directory: $(pwd)"
+#
+#   +------------------------------------------------------------+
+#   |          Generation of information required for backup     |
+#   +------------------------------------------------------------+
+#
+    echo -e "\n\n\tGENERATION OF INFORMATION FOR BACKUP"
+#
+#   +--------------------------------------------------------------+
+#   | Modify job script template file                              |
+#   +--------------------------------------------------------------+
+#
+    JOB_TPL="${NOTES_JTPL_FILE}"
+    JOB="${JOB_TPL##*/}";JOB="${JOB//.tpl/}"
+    echo -e "\n\tSubmitting job script to prepare backup information"
+    echo -e "\tJob template file is: ${JOB_TPL}"
+    echo -e "\tJob script will be: ${JOB}"
+    SEDFILE="$(mktemp -u ./sedfile.XXXXX)"
+    cat << EOF > $SEDFILE
+     #
+     # General settings for the job templates PBS directives
+     #
+     s/%%%%PROJECTNAME%%%%/${BACKUP_INF_PROJECTNAME}/g
+     s/%%%%JOBNAME%%%%/${BACKUP_INF_JOBNAME}/g
+     s/%%%%QUEUE%%%%/${BACKUP_INF_QUEUE}/g
+     s/%%%%NUMNODES%%%%/${BACKUP_INF_NUMNODES:=1}/g
+     s/%%%%NUMCORES%%%%/${BACKUP_INF_NUMCORES:=1}/g
+     s/%%%%NUMMPIPROC%%%%/${BACKUP_INF_NUMMPIPROC:=1}/g
+     s/%%%%NUMTHREADS%%%%/${BACKUP_INF_NUMTHREADS:=1}/g
+     s/%%%%HOW_MUCH_TIME_MAY_I_RUN%%%%/${BACKUP_INF_WTIME}/g
+     s/%%%%MODULE_LIST%%%%/${BACKUP_INF_MOD_LIST//\//\\/}/g
+     #
+     #
+     # Specific settings for splitting job template
+     #
+     s/%%%%INI_FILE%%%%/${INI_FILE//\//\\/}/g
+     s/%%%%FAMILY_INI_FILE%%%%/${FAMILY_INI_FILE//\//\\/}/g
+     s/%%%%WORK_ROOT_DIR%%%%/${BACKUP_WORK_DIR//\//\\/}/g
+     s/%%%%WHOGET%%%%/${WHOGET}/g
+     s/%%%%SUITE%%%%/%SUITE%/g
+     s/%%%%FAMILY%%%%/%FAMILY%/g
+EOF
+    sed -f $SEDFILE $JOB_TPL > $JOB
+    if [[ $? -ne 0 ]]; then  EXIT_STATUS=1; ERROR; fi
+    if [[ -e $SEDFILE ]];then rm $SEDFILE; fi
+#
+#   +--------------------------------------------------------------+
+#   | Submit the job to the queue                                  |
+#   +--------------------------------------------------------------+
+#
+    ecflow_qsub  $JOB || EXIT_STATUS=$?
+#
+#   +--------------------------------------------------------------+
+#   | Check whether the job has run successfully and then exit     |
+#   +--------------------------------------------------------------+
+#
+    if [[ $EXIT_STATUS -ne 0 ]];then
+       echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+       ERROR
+    fi
+#
+#
+# Remove the temporary directory for messages preparation            
+#
+    if [[ -d $NOTESG_TMP_DIR  ]];then rm -Rv $NOTESG_TMP_DIR | sed -e s/^/\\t/g ;fi  # Remove temporary directory for email messages preparation
+  
+    EXIT_STATUS=$?
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks. 
+                                       # It manages general calls to ecflow client

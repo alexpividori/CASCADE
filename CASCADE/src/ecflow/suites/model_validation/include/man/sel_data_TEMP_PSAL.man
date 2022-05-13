@@ -1,0 +1,36 @@
+======================================================================
+      This is the manual of the bash script: sel_data_TEMP_PSAL.ecf
+======================================================================
+
+Tipical run-time: 0-10 minutes
+
+This is the most complex, important and lasting task of the entire 
+model_validation suite.
+The main aim of this .ecf script is to produce a set of many ascii files
+one for every single in-situ measured drop with a new column pasted
+indicating the corresponding model data values. 
+
+This task launches two contemporary jobs (one for Temperature and one
+for Salinity ) that do the same thing for two different physical dimensions.
+
+The jobs is able to read the list_lines.txt file that contain the entire
+selected lines from in-situ measurements ascii file (see sel_lines.man)
+and divide it into single drops files (one for each measured drop). The
+output data file is always in CSV semicolon format with a less number of 
+information (only the important ones are saved).
+After the extraction of a single drop data, a new temporary ascii file
+with the corresponding model COPERNICUS data is created with a cdo 
+multi-command. The same hour, the same lon/lat coordinate and the same
+depth levels are interpolated on an hourly netCDF file to extract the 
+corresponding model values (for temp and sal). This temporary ascii file
+is pasted next to the measured drop file and the resulting complete single 
+drop ascii file is saved with the following format name: 
+[station_name]_[YYYY-MM-DD]_[hh-mm-ss]_TEMP.txt (for temperature) and
+[station_name]_[YYYY-MM-DD]_[hh-mm-ss]_PSAL.txt (for salinity). 
+
+If the monitoring station is placed outside the CMEMS domain, the ouput
+of the cdo command will be constituted of only missing values indicated with 
+the 1e+20 value. If the first depth value report this missing value, it
+means that that lon/lat point is placed outside the model domain and so the
+drop file is useless. For this reason it's name is not included inside the
+'list_files_TEMP.txt' or 'list_files_PSAL.txt' files list.

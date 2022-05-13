@@ -1,0 +1,52 @@
+%manual
+%include <man/remove_tmp_dir.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+%include <etc/general.ini>
+
+#=========================================================
+
+ output_public_dir="$public_root_dir/%FAMILY1%"    # /lustre/arpa/CASCADE/public_html/CMEMS_forecasts/FORECAST/f_d1   bulletin date is not used
+         plots_dir="$tmp_dir_root/%FAMILY1%/plots"
+
+echo "the output_dir is $output_public_dir " 
+
+GOON=0
+
+if [ -d $plots_dir ]; then
+
+     mkdir -p $output_public_dir    # no error if the path already exists
+
+     for file_name in ${plots_dir}/*
+     do
+        file_name=${file_name##*/}
+        new_name=$( echo "$file_name" | sed -e 's/_b20[0-9][0-9][0-1][0-9][0-3][0-9]//' -e 's/_f20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]//' ) || GOON=1
+        cp   ${plots_dir}/${file_name}   ${output_public_dir}/${new_name}  || GOON=1
+
+             if [ $GOON -eq 0 ]; then
+                echo $file_name
+                echo $new_name
+             else
+                echo -e "Something is gone wrong in the copying of \"${plots_dir}/${file_name}\" to \"${output_public_dir}/${new_name}\" or during the sed command"
+                GOON=0
+                continue
+             fi
+
+     done
+
+else
+  echo -e "Warning: The temporary directory \"${plots_dir}\" doesn't exist"
+fi
+
+echo "The task that copy the $plots_dir to $output_public_dir after removing the dates is finished "
+
+EXIT_STATUS=$?
+
+   echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+

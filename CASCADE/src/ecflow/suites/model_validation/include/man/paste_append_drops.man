@@ -1,0 +1,18 @@
+======================================================================
+      This is the manual of the bash script: paste_append_drops.ecf
+======================================================================
+
+Tipical run-time: 0-10 seconds
+
+The main aim of this .ecf script is to create two important ASCII data 
+files. 
+The first one is a file that contains the entire set of temperature 
+and salinity drops files (created by 'sel_data_TEMP_PSAL.ecf') names 
+in a CSV (;) format. The name of this .txt file is "list_files_TEMP_PSAL.txt"
+and is useful for certains plot scripts like TS_celio_comparison.ncl.
+
+The second one type file is a big data ascii document that contains the 
+entire drops database appended in a single file. The name of this document
+is TEMP_total_data.txt (for temperature) and PSAL_total_data.txt
+( for salinity ). This aperation is realized with a >> appender structure.
+

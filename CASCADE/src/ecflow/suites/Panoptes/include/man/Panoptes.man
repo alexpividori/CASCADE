@@ -1,0 +1,60 @@
+   -------------------------------
+
+   This is the manual of Panoptes operational suite
+
+   -------------------------------
+
+   Manual for: 
+          SUITE:  %SUITE%
+
+   Manual version: 0.0.1
+   Last change:    Feb 13, 2018
+   Change by:      Dario B. Giaiotti 
+
+   SUITE GOAL IS:
+   This suite monitors the FENICE cluster status and the operationa fluxes
+   loading information in the data exchange areas voted to the results display
+ 
+   EXTENDED SUITE DESCRIPTION
+   This suite performes several checks on the status of the cluster status and
+   evolution of the computationa fluxes. There are many families with nodes 
+   performing the retrieval of the information and the generatiion of the
+   summaries. Information can be summarized in images, i.e. plots, HTML files, 
+   and text files.
+ 
+   Some falimies 
+   
+   All the relevant information are stored in the suite initialization file.
+
+
+  
+   IF THIS SUITE FAILS, WHAT TO DO
+   Frist check which node has generated the failure and try to remove the 
+   bug. In fact all tasks in this suite should complete without failures and
+   the suite should be re-queued at the end, ready for the next forecast run.
+
+   In many cases you can re-queue all the suite and the problem is solved.
+
+   Please keep in mind to check the ecFlow log files and to save them before 
+   to re-requeue, otherwise logs will be overwritten.
+   You find log files in the suite subdirectry of the ECF_HOME, that is:
+ 
+   %ECF_HOME%%SUITE% 
+
+
+   You are reading this manual on ------>  %DAY%, %DATE% (at: %ECF_TIME% UTC) 
+ 
+
+   The suite was written by: 
+          Dario B. Giaiotti 
+          ARPA FVG - CRMA
+          Centro Regionale di Modellistica Ambientale 
+          Via Cairoli, 14 
+          I-33057 Palmanova (UD)
+          ITALY
+          Room I/20/U
+          Tel +39 0432 191 8048
+          Fax:+39 0432 191 8120
+          Certified e-mail - PEC arpa@certregione.fvg.it
+          e-mail dario.giaiotti@arpa.fvg.it
+

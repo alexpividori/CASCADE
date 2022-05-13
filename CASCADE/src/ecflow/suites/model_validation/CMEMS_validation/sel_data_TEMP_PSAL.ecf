@@ -1,0 +1,54 @@
+%manual
+%include <man/sel_data_TEMP_PSAL.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+
+%include <qsub_4_bash.h>
+%include <etc/general.ini>
+
+
+cd $tmp_dir_root
+
+GOON=0
+
+for i in $( seq 1 $(wc -l < $init_file_dir/pre_initialization_file.txt )  )
+do
+
+  drops_files_dir_n="drops_files_${i}"
+
+  echo -e "\t\n The directory \"$drops_files_dir_n\" will be filled with drops files right now."
+
+# For every pre_initialization_file.txt line, the jobs are modified and launched
+
+#=============================================================================
+
+sed -e s/%%%%find_arc_dir%%%%/${find_arc_dir//\//\\/}/g    \
+    -e s/%%%%cdo_module%%%%/${cdo_module//\//\\/}/g        \
+    -e s/%%%%tmp_dir_root%%%%/${tmp_dir_root//\//\\/}/g    \
+    -e s/%%%%drops_files_dir%%%%/${drops_files_dir_n//\//\\/}/g     celio_sel_data_TEMP_template.job   >   celio_sel_data_TEMP.job
+
+sed -e s/%%%%find_arc_dir%%%%/${find_arc_dir//\//\\/}/g    \
+    -e s/%%%%cdo_module%%%%/${cdo_module//\//\\/}/g        \
+    -e s/%%%%tmp_dir_root%%%%/${tmp_dir_root//\//\\/}/g    \
+    -e s/%%%%drops_files_dir%%%%/${drops_files_dir_n//\//\\/}/g     celio_sel_data_PSAL_template.job   >   celio_sel_data_PSAL.job
+
+
+  echo -e "\t\n The two job templates has just been modified. Now they will be launched"
+  echo -e "\t\n The $i-th line of \"pre_initialization_file.txt\" will be processed rigth now"
+
+        ecflow_qsub celio_sel_data_TEMP.job || GOON=1 &   # in this way the two jobs are launched at the same time
+        ecflow_qsub celio_sel_data_PSAL.job || GOON=1
+
+  if [ $GOON -eq 0 ] ; then
+     echo -e "\t The jobs \"celio_sel_data_TEMP.job\" and \"celio_sel_data_PSAL.job\" are just finished. The single-drops files are \
+                 available inside \"$drops_files_dir_n\" directory."
+  else
+     echo -e "\t ERROR: The jobs can't be submitted"
+  fi
+
+done
+
+%include <tail_4_bash.h>

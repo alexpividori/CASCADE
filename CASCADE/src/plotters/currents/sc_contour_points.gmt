@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+#******************************************************************************
+#
+# DESCRIPTION:      This GMT script uses 2 netCDF files containing uo and vo like
+#                   x and y components of water velocity. It Creates a new netCDF file
+#                   (speed.nc) by grdmath module containing the speed velocity module
+#                   used for the contour (grd contour module). The color scale is created
+#                   with makecpt module from 0 to 0.35 m/s values. It is created only 
+#                   once and used after modified the color of back ground from dark gray to
+#                   white.
+#                   GMT and cdo modules creates a conflict when you load the second module after
+#                   the first. In any case is preferable tu uplod cdo first and gmt for second:
+#                   module load cdo/1.9.8/intel/19.1.1.217-prtc7xl
+#                   module load gmt/6.0.0/intel/19.1.1.217-clpimwl
+#
+# EXTERNAL CALLS:   none.
+#
+# EXTERNAL FILES:   - input NetCDF data file (currents);
+#                    
+#                     
+#
+# DEVELOPER:        Alex Pividori (alex.pividori@arpa.fvg.it)
+#                   ARPA FVG - S.O.C. Stato dell'Ambiente - CRMA
+#                   "AdriaClim" Interreg IT-HR project
+#
+# SOFTWARE VERSION: NCL 6.0.0.
+#
+# CREATION DATE:    19/04/2021.
+#
+# MODIFICATIONS:    19/04/2021 --> Inserting of contour plot with module of velocity
+#                                  Inserting of vectorial field.
+#                   21/04/2021 --> Resolution of the sintax error induced by NCL in the
+#                                  case of multiline initialization_file.txt
+#                                  The while IFS=";", read serial lat_min lat_max long_min ecc
+#                                  loop has been substituted with a for i in 
+#                                  $( cat initialization_file.txt ) cycle and in this situation it works.
+#                                  Input values are collected in the array called parameters[*]
+#                   22/04/2021 --> The colorbar is positioned outside the graph. Anothe issus are the contour
+#                                  lines that are plotted instead the specification -A+h in the contour
+#                                  module line.
+#                   22/04/2021 --> Problem solved, you need to write -A,+h not -A+h to not plot lines
+#                   23/04/2021 --> Comments and ordering
+#                   27/04/2021 --> Adaption to COPERNICUS Marine current file.
+#                                  index_t and depth_val_t has been formatted
+#                   04/05/2021 --> This version pass the netCDF file name directly to the NCL script
+#                                  and eliminate the plot_type if else condition passing directly the plot
+#                                  type "s" or "r" to the NCL script. a and index have been deleted cause the 
+#                                  new .png name image does not need an index and a line number anymore.
+#                                  By editing a string the bulletin date is obtained from the file_cur.
+#
+# VERSION:          0.1.
+#
+#******************************************************************************
+
+#file_cur="/lustre/arpa/scratch/nadri-mg_2020.hydro-reg001.nc"
+file_cur="/lustre/arpa/scratch/FORECAST/2021/05/04/RFVL/adriatic_20210505_h-CMCC--RFVL-MFSeas5-MEDATL-b20210503_fc-sv06.00.nc"   # this is a CMEMS file
+
+# modules have to be charged
+
+file_cur_s="\"$file_cur\""  # this version file_cur_s is an escamotage to pass the file name to the NCL script
+
+for i in $( cat initialization_file.txt ); do
+
+IFS=";"
+read -a parameters <<< "$i"
+
+plot_type="\"${parameters[6]}\""
+
+   ncl -Q  read_time_cmems.ncl    delta_time=${parameters[7]}  lev=${parameters[8]}    type=$plot_type  file_cur_n=$file_cur_s
+  
+   if [ ${parameters[6]} == "s"  ] ; then
+     time_step=${parameters[7]}                                                                         
+   else
+     time_step=1
+   fi
+
+# After read the initialization_file parameters, I use them to prepare the .nc files
+
+while IFS=";" read -r  date  hour minute  depth_val    # the number of lines present in date_time.txt determinate the number of graphs
+do                                                     # time-steps to be represented. In "s" modality the will be only one line. 
+
+    cdo  seltimestep,$time_step  $file_cur  file_1.nc    
+
+    cdo  sellevel,$depth_val  file_1.nc file_2.nc
+    rm file_1.nc
+
+    cdo sellonlatbox,${parameters[3]},${parameters[4]},${parameters[1]},${parameters[2]}  file_2.nc file_3.nc
+    rm file_2.nc
+
+    cdo delname,vo   file_3.nc  file_uo.nc   # u_velocity and v_velocity are the names used by Shyfem ( not CMEMS )
+    cdo delname,uo   file_3.nc  file_vo.nc   # for Copernicus data use u_o and v_o
+    rm file_3.nc
+
+
+ #   gmt makecpt -Crainbow -T0./0.40/0.05 > colors.cpt    # colors.cpt will not be created each time because I modified the background color to white.
+  
+    depth_val_t=$(printf "%.2f" $depth_val )  # this is the approximated value reported on the title
+  
+    level=$(printf "%02u" ${parameters[8]} )
+    bulletin_date1=${file_cur##*b}
+    bulletin_date=${bulletin_date1%_*}
+
+  gmt begin "cmems_speed_contour_"$bulletin_date"_"$level"_f"$date"_"$hour"."$minute
+     gmt grdmath    @file_uo.nc 2 POW  @file_vo.nc 2 POW ADD SQRT = speed.nc 
+     gmt grdcontour  @speed.nc -R${parameters[3]}/${parameters[4]}/${parameters[1]}/${parameters[2]}  -JM6i -A,+h   -B -S5   -Ncolors.cpt 
+     gmt coast -R${parameters[3]}/${parameters[4]}/${parameters[1]}/${parameters[2]}  -JM6i    -Ggray
+     gmt plot  @points.csv     -Wfaint  -Sc0.2c   -Gred        
+     gmt text  @points.csv   -F+f5p,Helvetica,black+jLT -D0.08c/-0.08c
+ 
+     gmt set   FONT_TITLE 18p
+     gmt grdvector -R${parameters[3]}/${parameters[4]}/${parameters[1]}/${parameters[2]} file_uo.nc file_vo.nc   -JM6i  \
+                    -B+t"Velocity: Depth= $depth_val_t m  $date $hour:$minute UTC"  -Q0.1c+e+jc -Gblack -Sl0.3c -Wsolid -Ix1 
+     gmt set   FONT_LABEL 12p,Helvetica
+     gmt colorbar  -DJBC+w12c/0.5c+h  -Ccolors.cpt  -Baf+l"Water velocity [m/s]"
+     rm speed.nc
+     rm file_uo.nc
+     rm file_vo.nc
+  gmt end                                                                                      
+ 
+ ((time_step ++))                                                                            
+
+done < date_time.txt                                          
+
+
+ 
+done  
+

@@ -1,0 +1,7 @@
+tot;season1
+tot;season2
+tot;season3
+tot;season4
+tot;1S
+tot;2S
+tot;tot

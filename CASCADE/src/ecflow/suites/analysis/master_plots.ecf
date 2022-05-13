@@ -1,0 +1,224 @@
+%manual
+%include <man/master_plots.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks. 
+                                                        # It manages general calls to ecflow client
+%include <etc/general.ini>
+
+#********  Dates
+
+   DATE=%ECF_DATE%
+ DELTAF="%DELTAFORECAST%"
+  DATEB=$(date -u -d "$DATE $bulletin_date_delta" +%%Y%%m%%d)
+  DATEF=$(date -u -d "$DATEB  $DELTAF" +%%Y%%m%%d)
+
+echo -e "The current date  is $DATE  \n"
+echo -e "The bulletin date is $DATEB \n"
+echo -e "The forecast date is $DATEF \n"
+
+  YYYYB=${DATEB:0:4}
+    MMB=${DATEB:4:2}
+    DDB=${DATEB:6:2}
+
+  YYYYF=${DATEF:0:4}
+    MMF=${DATEF:4:2}
+    DDF=${DATEF:6:2}
+
+ DATEFS=${YYYYF}"-"${MMF}"-"${DDF}
+
+file_temp_m="$input_dir_data_root/$YYYYB/$MMB/$DDB/TEMP/adriatic_${DATEF}_h-CMCC--TEMP-MFSeas6-MEDATL-b${DATEB}_fc-sv07.00.nc"
+ file_sal_m="$input_dir_data_root/$YYYYB/$MMB/$DDB/PSAL/adriatic_${DATEF}_h-CMCC--PSAL-MFSeas6-MEDATL-b${DATEB}_fc-sv07.00.nc"
+ file_cur_m="$input_dir_data_root/$YYYYB/$MMB/$DDB/RFVL/adriatic_${DATEF}_h-CMCC--RFVL-MFSeas6-MEDATL-b${DATEB}_fc-sv07.00.nc"   
+
+#====================================================
+
+file_temp_s="\"$file_temp_m\""
+ file_sal_s="\"$file_sal_m\""
+ file_cur_s="\"$file_cur_m\""
+
+echo $file_temp_s
+echo $file_sal_s
+echo $file_cur_s
+
+# charging modules
+
+module load $ncl_module              &>/dev/null
+module load $gmt_module              &>/dev/null
+
+#==============================================
+
+   input_files_dir="$tmp_dir_root/%FAMILY1%"
+  output_files_dir="$tmp_dir_root/%FAMILY1%/plots"
+      
+# the script dir is contained inside the initialization file 
+
+output_files_dir_s="\"$output_files_dir/\""
+
+
+#================== Check ===================
+
+if [ -d $input_files_dir ] && [ -d $output_files_dir  ]; then
+  cd $input_files_dir
+  echo -e "Passage to \"$input_files_dir\" happened with success"
+else
+  echo -e "ERROR: Passage to \" $input_files_dir \" can't be executed: $input_files_dir and\/or $output_files_dir doesn't exist."
+  EXIT_STATUS=$?
+  exit $EXIT_STATUS
+fi
+
+#============================================================
+#                  START BLOCK TS_diagram
+#============================================================
+
+if [ %PLOT_TYPE% == "TS_diagram_NCL"  ]; then
+
+    files_list_s="\"$input_files_dir/initialization_file_A0.txt\""
+
+for line in $( cat "$input_files_dir/initialization_file.txt" ); do
+
+    plot_category=${line:0:2}
+
+if [ $plot_category == "A0" ]; then
+   echo  $line  >> $input_files_dir/initialization_file_A0.txt
+else
+   continue
+ fi
+
+done
+
+echo -e "NCL script is now starting \n"
+
+ncl -Q  $input_files_dir/ecflow_TS_fenix.ncl  initialization_file=$files_list_s   \
+         output_dir=$output_files_dir_s    file_temp=$file_temp_s  file_sal=$file_sal_s  date_run_f=$DATEB
+
+echo -e "NCL script is just finished \n"
+
+rm $input_files_dir/initialization_file_A0.txt
+
+fi
+
+
+#============================================================
+#                START BLOCK Streamlines_NCL
+#============================================================
+
+if [ %PLOT_TYPE% == "strlines_NCL"  ]; then
+
+    files_list_s="\"$input_files_dir/initialization_file_A4.txt\""
+
+for line in $( cat "$input_files_dir/initialization_file.txt" ); do
+
+    plot_category=${line:0:2}
+
+if [ $plot_category == "A4" ]; then
+   echo  $line  >> $input_files_dir/initialization_file_A4.txt
+else
+   continue
+ fi
+
+done
+
+echo -e "NCL script for Streamlines is now starting \n"
+
+ncl -Q  $input_files_dir/ecflow_regrid_points_str_fenix.ncl  initialization_file=$files_list_s   \
+         output_dir=$output_files_dir_s     file_cur=$file_cur_s   date_run_f=$DATEB
+
+echo -e "ecflow_regrid_points_str_fenix.ncl NCL script  is just finished \n"
+
+rm $input_files_dir/initialization_file_A4.txt
+
+fi
+
+
+#============================================================
+#                  START BLOCK T_transect
+#============================================================
+
+if [ %PLOT_TYPE% == "T_transect_NCL"  ]; then
+
+  files_list_s="\"$input_files_dir/initialization_file_A1.txt\""
+
+for line in $( cat "$input_files_dir/initialization_file.txt" ); do
+
+  plot_category=${line:0:2}
+
+if [ $plot_category == "A1" ]; then
+  echo  $line  >> $input_files_dir/initialization_file_A1.txt
+else
+  continue
+fi
+
+done
+
+echo -e "NCL script is now starting \n"
+
+ncl -Q  $input_files_dir/ecflow_T_transect.ncl  initialization_file=$files_list_s   \
+        output_dir=$output_files_dir_s    file_temp=$file_temp_s 
+
+echo -e "NCL script is just finished \n"
+
+rm $input_files_dir/initialization_file_A1.txt
+
+fi
+
+#============================================================
+#               START BLOCK Contour velocity GMT
+#============================================================
+
+if [ %PLOT_TYPE% == "cnt_v_v_GMT"  ]; then
+
+  files_list_s="\"$input_files_dir/initialization_file_A3.txt\""
+
+       for line in $( cat "$input_files_dir/initialization_file.txt" ); do
+
+           plot_category=${line:0:2}
+
+           if [ $plot_category == "A3" ]; then
+             echo  $line  >> $input_files_dir/initialization_file_A3.txt
+           else
+             continue
+           fi
+
+       done
+
+#***********************************************
+
+echo "GMT script is now starting"
+
+   $input_files_dir/ecflow_sc_contour_points_n.gmt  "$input_files_dir/initialization_file_A3.txt"  $file_cur_m  $input_files_dir  $output_files_dir
+
+# la bulletin date se la tira fuori lui dal nome del file
+
+echo -e "GMT script is just finished \n"
+
+#  Temporary conversion to .gif file
+
+GOGIF=0
+
+convert -delay 50 -loop 0 ${output_files_dir}/cmems_speed_contour_b${DATEB}_01_*.png \
+         ${output_files_dir}/cn_velocity_01_b${DATEB}_f${DATEFS}.gif  || GOGIF=1 
+convert -delay 50 -loop 0 ${output_files_dir}/cmems_speed_contour_b${DATEB}_04_*.png \
+         ${output_files_dir}/cn_velocity_04_b${DATEB}_f${DATEFS}.gif  || GOGIF=1 
+
+if [ $GOGIF -eq 0 ]; then
+  echo  "The creation of GIF file has been completed correctly"
+else
+  echo "Warning: The two GIF file can't be created"
+fi
+
+rm $input_files_dir/initialization_file_A3.txt
+
+fi
+
+#================================================
+    
+   
+    echo -e "\n\tThe task is now finished\n"
+
+    EXIT_STATUS=$?
+    echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks. 
+                                       # It manages general calls to ecflow client

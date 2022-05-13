@@ -1,0 +1,40 @@
+======================================================================
+   This is the manual of the bash script: depth_discrimination.ecf
+======================================================================
+
+Usual run-time: 0 to 2 minutes
+
+"depth_discrimination.ecf" is an ecflow task written in bash that throw
+one .job to divide the entire database
+( constituted by all selected drops according to the pre_initialization_file.txt )
+files 'TEMP_total_data.txt' and 'PSAL_total_data.txt' into n files
+selected on an array of different depth ranges. The depth limits 
+to take into account is saved into /linclude/etc/general.ini file
+by the depth_ranges_array variable.
+The code read the two total data files (for Temp and Sal) contained
+in drops_files_# and divide each data line into n ascii files
+according to the depth_ranges_array. These files are positioned
+in a different directory called selected_depths_# (where # indicate
+the pre_initialization_file.txt line corresponding to).
+Two files called "selected_T_files_bydepth.txt" and "selected_S_files_bydepth.txt", 
+containing the names of the discriminating depth files just created, 
+are included in selected_depths_# directories.
+In the case of no data is selected for a particular depth range (for example
+between 50 and 55 m or between 1.01 and 1.24 m) the ASCII file
+won't be present neither in selected_depths_# directory nor in the
+file list of "selected_T_files_bydepth.txt".
+
+IMPORTANT: One single depth range goes between two consecutive depth 
+values of $depth_ranges_array where the inferior limit is included and
+the superior instead is not. 
+For example: with a depth_ranges_array="( 1.0 3.0 5.0 10.0 15.0 20.0 26.25 )"
+the first (more superficial) depth section goes from 1.0 m (included)
+to 3.0 m (excluded). So the only depth value that will be selected
+are 1.0 1.25 1.5 1.75 2 2.25 2.5 and 2.75. The same reasoning applies 
+to the other cases.
+
+Due to the "boxplot_delta_T_val.r" and "boxplot_delta_S_val.r" scripts
+the only depth layer numbers supported are 3,4,5 and 6. Maybe new versions 
+will implement a generic depth layers number.
+
+

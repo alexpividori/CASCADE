@@ -1,0 +1,36 @@
+%manual
+%include <man/remove_tmp_dir.man>
+%end
+
+
+%include <head_4_bash.h>                                # Include header common to all tasks.
+                                                        # It manages general calls to ecflow client
+%include <etc/general.ini>
+
+#=========================================================
+
+tmp_dir="$tmp_dir_root"
+
+GOON=0
+
+if [ -d $tmp_dir ]; then
+
+     rm -r $tmp_dir || GOON=1
+     if [ $GOON -eq 0 ] ; then
+       echo -e "The remotion of \"${tmp_dir}\" has been done"
+     else
+       echo "Error: The directory can't be removed"
+       ERROR
+     fi
+
+else
+  echo -e "Warning: The temporary directory \"${tmp_dir}\" doesn't exist"
+fi
+
+EXIT_STATUS=$?
+
+   echo -e "\n\tExecution completed with EXIT_STATUS=${EXIT_STATUS}\n\n"
+
+%include <tail_4_bash.h>               # Include tail common to all tasks.
+                                       # It manages general calls to ecflow client
+
